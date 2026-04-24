@@ -1,0 +1,33 @@
+services:
+  backend:
+    build:
+      context: ./apps/backend
+      dockerfile: Dockerfile
+    environment:
+      NODE_ENV: production
+      PORT: 3101
+      DATABASE_URL: file:./data/habit-tracker.db
+      JWT_SECRET: ${JWT_SECRET:-change-me-in-production}
+      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:3000}
+      EMAIL_SERVICE_API_KEY: ${EMAIL_SERVICE_API_KEY:-}
+      EMAIL_FROM: ${EMAIL_FROM:-noreply@example.com}
+    ports:
+      - "3101:3101"
+    volumes:
+      - habit_tracker_data:/app/apps/backend/data
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./apps/frontend
+      dockerfile: Dockerfile
+      args:
+        VITE_API_BASE_URL: /api
+    depends_on:
+      - backend
+    ports:
+      - "3000:80"
+    restart: unless-stopped
+
+volumes:
+  habit_tracker_data:

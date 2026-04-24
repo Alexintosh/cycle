@@ -1,0 +1,11 @@
+{
+  "name": "habit-tracker-mobile",
+  "private": true,
+  "version": "0.1.0",
+  "scripts": {
+    "dev": "make dev",
+    "install:all": "make install",
+    "typecheck": "make typecheck",
+    "test": "make test"
+  }
+}
