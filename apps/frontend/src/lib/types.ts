@@ -44,6 +44,9 @@ export interface Habit {
   goal: number | null
   color: string
   emoji?: string
+  sourceType?: "manual" | "package"
+  packageId?: string | null
+  packageItemId?: string | null
   order: number
   createdAt: string
   updatedAt: string
@@ -60,9 +63,85 @@ export interface User {
   email: string
   displayName: string
   lastLoginAt?: string | null
+  authMode?: "standard" | "bypass"
 }
 
 export interface SessionTokens {
   token: string
   refreshToken: string
+}
+
+export interface PasskeySummary {
+  id: string
+  name: string
+  deviceType: "singleDevice" | "multiDevice"
+  backedUp: boolean
+  transports: string[]
+  createdAt: string
+  lastUsedAt: string | null
+}
+
+export interface PackageItemDefinition {
+  id: string
+  timeframe: Frequency
+  emoji?: string
+  title: string
+  description: string
+  goal: number | null
+  section: string
+  color?: string
+}
+
+export type PackageVersionStatus = "not-installed" | "current" | "update-available" | "ahead" | "unknown"
+
+export interface InstalledPackageSummary {
+  id: string
+  packageId: string
+  title: string
+  description: string | null
+  author: string
+  installedVersion: string
+  installedAt: string
+  updatedAt: string
+  habitCount: number
+}
+
+export interface RegistryPackage {
+  id: string
+  title: string
+  description: string
+  author: string
+  version: string
+  tags: string[]
+  items: PackageItemDefinition[]
+  itemCount: number
+  installation: InstalledPackageSummary | null
+  versionStatus: PackageVersionStatus
+  hasUpdate: boolean
+}
+
+export interface PackageRegistryPayload {
+  schemaVersion: number
+  updatedAt: string
+  packages: RegistryPackage[]
+}
+
+export interface PackageRegistryEntry {
+  id: string
+  name: string
+  description: string | null
+  latestVersion: string
+}
+
+export interface InstalledPackage {
+  id: string
+  name: string
+  version: string
+  latestVersion: string | null
+}
+
+export interface PackageRegistryWithInstallState extends PackageRegistryEntry {
+  installedVersion: string | null
+  isInstalled: boolean
+  hasUpdate: boolean
 }

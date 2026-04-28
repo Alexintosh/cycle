@@ -8,6 +8,7 @@ import { WeekPage } from "@/routes/week-page"
 import { MonthPage } from "@/routes/month-page"
 import { YearPage } from "@/routes/year-page"
 import { SettingsPage } from "@/routes/settings-page"
+import { PackagesPage } from "@/routes/packages-page"
 
 export const router = createBrowserRouter([
   {
@@ -26,6 +27,7 @@ export const router = createBrowserRouter([
           { path: "week", element: <WeekPage /> },
           { path: "month", element: <MonthPage /> },
           { path: "year", element: <YearPage /> },
+          { path: "packages", element: <PackagesPage /> },
           { path: "settings", element: <SettingsPage /> },
         ],
       },

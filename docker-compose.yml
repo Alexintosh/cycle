@@ -9,6 +9,9 @@ services:
       DATABASE_URL: file:./data/habit-tracker.db
       JWT_SECRET: ${JWT_SECRET:-change-me-in-production}
       FRONTEND_URL: ${FRONTEND_URL:-http://localhost:3000}
+      AUTH_BYPASS_ENABLED: ${AUTH_BYPASS_ENABLED:-false}
+      AUTH_BYPASS_EMAIL: ${AUTH_BYPASS_EMAIL:-internal@cycle.local}
+      AUTH_BYPASS_DISPLAY_NAME: ${AUTH_BYPASS_DISPLAY_NAME:-Internal User}
       EMAIL_SERVICE_API_KEY: ${EMAIL_SERVICE_API_KEY:-}
       EMAIL_FROM: ${EMAIL_FROM:-noreply@example.com}
     ports:

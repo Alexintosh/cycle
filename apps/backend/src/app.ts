@@ -6,11 +6,14 @@ import { loadConfig, type AppConfig } from "./config.ts"
 import { createDatabase, type AppDatabase } from "./db/client.ts"
 import { initializeDatabase } from "./db/init.ts"
 import { createAuthRoutes } from "./modules/auth/routes.ts"
+import { createPasskeyRoutes } from "./modules/auth/passkeys-routes.ts"
 import { createHabitRoutes } from "./modules/habits/routes.ts"
+import { createPackageRoutes } from "./modules/packages/routes.ts"
+import type { PackageRegistry } from "./modules/packages/types.ts"
 
 export type AppInstance = Awaited<ReturnType<typeof createApp>>
 
-export async function createApp(configOverrides: Partial<AppConfig> = {}) {
+export async function createApp(configOverrides: Partial<AppConfig> & { packageRegistry?: PackageRegistry } = {}) {
   const config = {
     ...loadConfig(),
     ...configOverrides,
@@ -64,9 +67,10 @@ export async function createApp(configOverrides: Partial<AppConfig> = {}) {
             description: "Backend API for Cycle, the recurring life tracker for rituals and upkeep.",
           },
           tags: [
-            { name: "Authentication", description: "OTP sign-in and token management." },
+            { name: "Authentication", description: "OTP, passkeys, and token management." },
             { name: "Habits", description: "Habit CRUD and period queries." },
             { name: "Habit Logs", description: "Completion log management." },
+            { name: "Packages", description: "Registry packages and installation management." },
             { name: "Metadata", description: "Frequency and category lookup." },
             { name: "Data", description: "Import and export endpoints." },
           ],
@@ -86,7 +90,9 @@ export async function createApp(configOverrides: Partial<AppConfig> = {}) {
       }),
     )
     .use(createAuthRoutes({ db, config }))
-    .use(createHabitRoutes({ db }))
+    .use(createPasskeyRoutes({ db, config }))
+    .use(createHabitRoutes({ db, config }))
+    .use(createPackageRoutes({ db, config, packageRegistry: configOverrides.packageRegistry }))
 
   return {
     app,

@@ -1,0 +1,126 @@
+{
+  "schemaVersion": 1,
+  "updatedAt": "2026-04-24T12:00:00.000Z",
+  "packages": [
+    {
+      "id": "cycle.house.deep-clean",
+      "title": "Deep Clean House",
+      "description": "Recurring home upkeep that is easy to forget until it becomes annoying.",
+      "author": "Cycle",
+      "version": "1.0.0",
+      "tags": ["home", "upkeep", "cleaning"],
+      "items": [
+        {
+          "id": "baseboards",
+          "timeframe": "monthly",
+          "emoji": "🧽",
+          "title": "Clean baseboards",
+          "description": "Wipe down baseboards in the main rooms and hallway.",
+          "goal": 1,
+          "section": "UPKEEP",
+          "color": "#E0F2FE"
+        },
+        {
+          "id": "range-hood",
+          "timeframe": "monthly",
+          "emoji": "🫧",
+          "title": "Degrease range hood filters",
+          "description": "Soak and scrub the kitchen hood filters before grease builds up.",
+          "goal": 1,
+          "section": "UPKEEP",
+          "color": "#E0F2FE"
+        },
+        {
+          "id": "fridge-coils",
+          "timeframe": "yearly",
+          "emoji": "🧊",
+          "title": "Clean fridge coils",
+          "description": "Vacuum fridge coils to keep the compressor running efficiently.",
+          "goal": 1,
+          "section": "UPKEEP",
+          "color": "#DBEAFE"
+        }
+      ]
+    },
+    {
+      "id": "cycle.car.care-basics",
+      "title": "Car Care Basics",
+      "description": "Essential vehicle upkeep so the car stays clean, legal, and lower-stress.",
+      "author": "Cycle",
+      "version": "1.0.0",
+      "tags": ["car", "upkeep", "maintenance"],
+      "items": [
+        {
+          "id": "interior-reset",
+          "timeframe": "monthly",
+          "emoji": "🚗",
+          "title": "Reset the car interior",
+          "description": "Clear trash, wipe the dashboard, and vacuum the most-used areas.",
+          "goal": 1,
+          "section": "UPKEEP",
+          "color": "#FDE68A"
+        },
+        {
+          "id": "fluid-check",
+          "timeframe": "quarterly",
+          "emoji": "🛢️",
+          "title": "Check car fluids",
+          "description": "Review windshield washer fluid, engine oil, and coolant levels.",
+          "goal": 1,
+          "section": "UPKEEP",
+          "color": "#FDE68A"
+        },
+        {
+          "id": "insurance-review",
+          "timeframe": "yearly",
+          "emoji": "🪪",
+          "title": "Review insurance and documents",
+          "description": "Confirm policy renewal dates, roadside coverage, and registration details.",
+          "goal": 1,
+          "section": "UPKEEP",
+          "color": "#FCD34D"
+        }
+      ]
+    },
+    {
+      "id": "cycle.digital.admin",
+      "title": "Digital Admin Reset",
+      "description": "Keep digital life calm with recurring admin rituals that stop small messes from compounding.",
+      "author": "Cycle",
+      "version": "1.0.0",
+      "tags": ["digital", "admin", "focus"],
+      "items": [
+        {
+          "id": "downloads-cleanup",
+          "timeframe": "monthly",
+          "emoji": "🗂️",
+          "title": "Clean the downloads folder",
+          "description": "Delete junk files and move anything worth keeping into a real home.",
+          "goal": 1,
+          "section": "UPKEEP",
+          "color": "#DDD6FE"
+        },
+        {
+          "id": "inbox-zero-ish",
+          "timeframe": "weekly",
+          "emoji": "📥",
+          "title": "Reset the inbox",
+          "description": "Archive stale threads, answer the important ones, and unsubscribe from noise.",
+          "goal": 1,
+          "section": "OTHER",
+          "color": "#C4B5FD"
+        },
+        {
+          "id": "backup-review",
+          "timeframe": "semiannual",
+          "emoji": "💾",
+          "title": "Review backups",
+          "description": "Check that core devices and documents still have a working backup path.",
+          "goal": 1,
+          "section": "UPKEEP",
+          "color": "#C4B5FD"
+        }
+      ]
+    }
+  ]
+}

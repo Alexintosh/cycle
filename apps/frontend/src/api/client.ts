@@ -1,6 +1,19 @@
-import type { HabitWithLogs, SessionTokens, User } from "@/lib/types"
+import type {
+  AuthenticationResponseJSON,
+  PublicKeyCredentialCreationOptionsJSON,
+  PublicKeyCredentialRequestOptionsJSON,
+  RegistrationResponseJSON,
+} from "@simplewebauthn/browser"
+import type {
+  HabitWithLogs,
+  InstalledPackageSummary,
+  PackageRegistryPayload,
+  PasskeySummary,
+  SessionTokens,
+  User,
+} from "@/lib/types"
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "http://127.0.0.1:3101"
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:3101"
 
 type SuccessResponse<T> = {
   success: true
@@ -40,6 +53,9 @@ type BackendHabit = {
   goal: number | null
   color: string
   emoji?: string
+  sourceType?: "manual" | "package"
+  packageId?: string | null
+  packageItemId?: string | null
   order: number
   createdAt: string
   updatedAt: string
@@ -153,6 +169,59 @@ export class ApiClient {
     return this.request<User>("/auth/me")
   }
 
+  authMode() {
+    return this.request<{ mode: "standard" | "bypass" }>("/auth/mode", {}, false)
+  }
+
+  listPasskeys() {
+    return this.request<PasskeySummary[]>("/auth/passkeys")
+  }
+
+  beginPasskeyRegistration() {
+    return this.request<{
+      challengeId: string
+      options: PublicKeyCredentialCreationOptionsJSON
+    }>("/auth/passkeys/register/options", {
+      method: "POST",
+    })
+  }
+
+  finishPasskeyRegistration(input: {
+    challengeId: string
+    response: RegistrationResponseJSON
+    name?: string
+  }) {
+    return this.request<{ passkey: PasskeySummary }>("/auth/passkeys/register/verify", {
+      method: "POST",
+      body: JSON.stringify(input),
+    })
+  }
+
+  beginPasskeyAuthentication() {
+    return this.request<{
+      challengeId: string
+      options: PublicKeyCredentialRequestOptionsJSON
+    }>("/auth/passkeys/authenticate/options", {
+      method: "POST",
+    }, false)
+  }
+
+  finishPasskeyAuthentication(input: {
+    challengeId: string
+    response: AuthenticationResponseJSON
+  }) {
+    return this.request<{ token: string; refreshToken: string; user: User }>("/auth/passkeys/authenticate/verify", {
+      method: "POST",
+      body: JSON.stringify(input),
+    }, false)
+  }
+
+  deletePasskey(passkeyId: string) {
+    return this.request<{ removed: true }>(`/auth/passkeys/${passkeyId}`, {
+      method: "DELETE",
+    })
+  }
+
   listHabits(params: Record<string, string | boolean | undefined> = {}) {
     const searchParams = new URLSearchParams()
     for (const [key, value] of Object.entries(params)) {
@@ -167,6 +236,44 @@ export class ApiClient {
 
   getCompletedNonDaily(date: string) {
     return this.request<BackendHabit[]>(`/habits/completed-non-daily?date=${date}`).then((habits) => habits.map(mapHabit))
+  }
+
+  listPackageRegistry() {
+    return this.request<PackageRegistryPayload>("/packages/registry")
+  }
+
+  listInstalledPackages() {
+    return this.request<InstalledPackageSummary[]>("/packages/installed")
+  }
+
+  installPackage(packageId: string) {
+    return this.request<{
+      installation: InstalledPackageSummary
+      addedHabits: number
+    }>(`/packages/${packageId}/install`, {
+      method: "POST",
+    })
+  }
+
+  updatePackage(packageId: string) {
+    return this.request<{
+      installation: InstalledPackageSummary
+      previousVersion: string
+      currentVersion: string
+      updatedHabits: number
+      addedHabits: number
+    }>(`/packages/${packageId}/update`, {
+      method: "POST",
+    })
+  }
+
+  removePackage(packageId: string) {
+    return this.request<{
+      removed: true
+      deletedHabits: number
+    }>(`/packages/${packageId}`, {
+      method: "DELETE",
+    })
   }
 
   createHabit(input: {
@@ -237,6 +344,7 @@ export class ApiClient {
       version: number
       exportedAt: string
       habits: Array<Record<string, unknown>>
+      packages?: Array<Record<string, unknown>>
       logs: Array<Record<string, unknown>>
     }>("/data/export")
   }
@@ -245,9 +353,10 @@ export class ApiClient {
     version?: number
     mode?: "replace" | "append"
     habits: Array<Record<string, unknown>>
+    packages?: Array<Record<string, unknown>>
     logs: Array<Record<string, unknown>>
   }) {
-    return this.request<{ importedHabits: number; importedLogs: number }>("/data/import", {
+    return this.request<{ importedHabits: number; importedPackages?: number; importedLogs: number }>("/data/import", {
       method: "POST",
       body: JSON.stringify(payload),
     })

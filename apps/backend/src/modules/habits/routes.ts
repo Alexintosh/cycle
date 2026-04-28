@@ -1,7 +1,8 @@
 import { and, asc, desc, eq, inArray, sql } from "drizzle-orm"
 import { Elysia, t } from "elysia"
+import type { AppConfig } from "../../config.ts"
 import type { AppDatabase } from "../../db/client.ts"
-import { habitLogs, habits } from "../../db/schema.ts"
+import { habitLogs, habits, installedPackages } from "../../db/schema.ts"
 import { ok, fail } from "../../lib/api.ts"
 import { assertIsoDate, getTodayIsoDate } from "../../lib/date.ts"
 import { isFrequencyKey, listFrequencyDefinitions } from "../../lib/frequencies.ts"
@@ -10,6 +11,7 @@ import { getHabitById, listHabits } from "./service.ts"
 
 type RouteServices = {
   db: AppDatabase
+  config: AppConfig
 }
 
 type RouteContext = any
@@ -19,7 +21,7 @@ function normalizeOptionalString(value?: string | null) {
   return trimmed ? trimmed : null
 }
 
-export function createHabitRoutes({ db }: RouteServices) {
+export function createHabitRoutes({ db, config }: RouteServices) {
   return new Elysia()
     .get(
       "/frequencies",
@@ -245,6 +247,9 @@ export function createHabitRoutes({ db }: RouteServices) {
             goal: body.goal ?? null,
             color: body.color.trim(),
             emoji: normalizeOptionalString(body.emoji) ?? "✨",
+            sourceType: "manual",
+            packageId: null,
+            packageItemId: null,
             order: (maxOrderRow?.maxOrder ?? -1) + 1,
             createdAt: now,
             updatedAt: now,
@@ -393,6 +398,7 @@ export function createHabitRoutes({ db }: RouteServices) {
         }
 
         await db.delete(habits).where(eq(habits.userId, user.id))
+        await db.delete(installedPackages).where(eq(installedPackages.userId, user.id))
         return ok({ deleted: true })
       },
       {
@@ -669,6 +675,12 @@ export function createHabitRoutes({ db }: RouteServices) {
           .where(eq(habits.userId, user.id))
           .orderBy(asc(habits.order), desc(habits.createdAt))
 
+        const userPackages = await db
+          .select()
+          .from(installedPackages)
+          .where(eq(installedPackages.userId, user.id))
+          .orderBy(asc(installedPackages.title))
+
         const logs = userHabits.length
           ? await db
               .select()
@@ -678,7 +690,7 @@ export function createHabitRoutes({ db }: RouteServices) {
           : []
 
         return ok({
-          version: 1,
+          version: 2,
           exportedAt: new Date().toISOString(),
           habits: userHabits.map((habit) => ({
             id: habit.id,
@@ -689,9 +701,22 @@ export function createHabitRoutes({ db }: RouteServices) {
             goal: habit.goal,
             color: habit.color,
             emoji: habit.emoji ?? "✨",
+            sourceType: habit.sourceType,
+            packageId: habit.packageId,
+            packageItemId: habit.packageItemId,
             order: habit.order,
             createdAt: habit.createdAt.toISOString(),
             updatedAt: habit.updatedAt.toISOString(),
+          })),
+          packages: userPackages.map((pkg) => ({
+            id: pkg.id,
+            packageId: pkg.packageId,
+            title: pkg.title,
+            description: pkg.description ?? null,
+            author: pkg.author,
+            installedVersion: pkg.installedVersion,
+            installedAt: pkg.installedAt.toISOString(),
+            updatedAt: pkg.updatedAt.toISOString(),
           })),
           logs: logs.map((log) => ({
             id: log.id,
@@ -736,6 +761,7 @@ export function createHabitRoutes({ db }: RouteServices) {
         const mode = body.mode ?? "replace"
         if (mode === "replace") {
           await db.delete(habits).where(eq(habits.userId, user.id))
+          await db.delete(installedPackages).where(eq(installedPackages.userId, user.id))
         }
 
         const now = new Date()
@@ -750,11 +776,30 @@ export function createHabitRoutes({ db }: RouteServices) {
             goal: habit.goal ?? null,
             color: habit.color.trim(),
             emoji: normalizeOptionalString(habit.emoji) ?? "✨",
+            sourceType: habit.sourceType ?? "manual",
+            packageId: normalizeOptionalString(habit.packageId),
+            packageItemId: normalizeOptionalString(habit.packageItemId),
             order: habit.order,
             createdAt: new Date(habit.createdAt),
             updatedAt: new Date(habit.updatedAt),
           })),
         )
+
+        if (body.packages?.length) {
+          await db.insert(installedPackages).values(
+            body.packages.map((pkg: any) => ({
+              id: pkg.id,
+              userId: user.id,
+              packageId: pkg.packageId,
+              title: pkg.title.trim(),
+              description: normalizeOptionalString(pkg.description),
+              author: pkg.author.trim(),
+              installedVersion: pkg.installedVersion.trim(),
+              installedAt: new Date(pkg.installedAt),
+              updatedAt: new Date(pkg.updatedAt),
+            })),
+          )
+        }
 
         if (body.logs.length) {
           await db.insert(habitLogs).values(
@@ -771,6 +816,7 @@ export function createHabitRoutes({ db }: RouteServices) {
 
         return ok({
           importedHabits: body.habits.length,
+          importedPackages: body.packages?.length ?? 0,
           importedLogs: body.logs.length,
         })
       },
@@ -788,10 +834,27 @@ export function createHabitRoutes({ db }: RouteServices) {
               goal: t.Optional(t.Nullable(t.Number({ minimum: 1 }))),
               color: t.String({ minLength: 1 }),
               emoji: t.Optional(t.Nullable(t.String())),
+              sourceType: t.Optional(t.String()),
+              packageId: t.Optional(t.Nullable(t.String())),
+              packageItemId: t.Optional(t.Nullable(t.String())),
               order: t.Number(),
               createdAt: t.String(),
               updatedAt: t.String(),
             }),
+          ),
+          packages: t.Optional(
+            t.Array(
+              t.Object({
+                id: t.String(),
+                packageId: t.String(),
+                title: t.String({ minLength: 1 }),
+                description: t.Optional(t.Nullable(t.String())),
+                author: t.String({ minLength: 1 }),
+                installedVersion: t.String({ minLength: 1 }),
+                installedAt: t.String(),
+                updatedAt: t.String(),
+              }),
+            ),
           ),
           logs: t.Array(
             t.Object({

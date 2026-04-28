@@ -3,10 +3,24 @@ import { LoginForm } from "@/components/login-form"
 import { useAuth } from "@/features/auth/auth-context"
 
 export function LoginPage() {
-  const { status } = useAuth()
+  const { authMode, status } = useAuth()
 
   if (status === "authenticated") {
     return <Navigate to="/" replace />
+  }
+
+  if (status === "loading") {
+    return <div className="flex min-h-screen items-center justify-center text-sm text-slate-500">Checking access…</div>
+  }
+
+  if (authMode === "bypass") {
+    return (
+      <div className="flex min-h-screen items-center justify-center px-6 text-center">
+        <div className="rounded-2xl border bg-white px-6 py-5 text-sm text-slate-600 shadow-soft">
+          Access is managed by this deployment. The login screen is disabled.
+        </div>
+      </div>
+    )
   }
 
   return (

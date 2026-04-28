@@ -7,6 +7,7 @@ const items: Array<{ to: string; label: string; end?: boolean }> = [
   { to: "/week", label: "Weekly" },
   { to: "/month", label: "Monthly" },
   { to: "/year", label: "Yearly" },
+  { to: "/packages", label: "Packages" },
   { to: "/settings", label: "Settings" },
 ] as const
 

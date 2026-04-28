@@ -9,7 +9,7 @@ import { useAuth } from "@/features/auth/auth-context"
 type LoginStep = "email" | "otp"
 
 export function LoginForm() {
-  const { requestOtp, verifyOtp } = useAuth()
+  const { authenticateWithPasskey, requestOtp, supportsPasskeys, verifyOtp } = useAuth()
   const navigate = useNavigate()
   const location = useLocation()
   const [step, setStep] = useState<LoginStep>("email")
@@ -19,6 +19,7 @@ export function LoginForm() {
   const [isNewUser, setIsNewUser] = useState(false)
   const [error, setError] = useState("")
   const [helper, setHelper] = useState("")
+  const [isPasskeyPending, setIsPasskeyPending] = useState(false)
   const [isPending, startTransition] = useTransition()
 
   const redirectPath = (location.state as { from?: { pathname?: string } } | null)?.from?.pathname || "/"
@@ -68,6 +69,21 @@ export function LoginForm() {
     setHelper("")
   }
 
+  const handlePasskey = async () => {
+    setError("")
+    setHelper("")
+    setIsPasskeyPending(true)
+
+    try {
+      await authenticateWithPasskey()
+      navigate(redirectPath, { replace: true })
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unable to sign in with passkey.")
+    } finally {
+      setIsPasskeyPending(false)
+    }
+  }
+
   return (
     <Card className="w-full max-w-md border-white/70 bg-white/90 shadow-soft backdrop-blur">
       <CardHeader className="space-y-2">
@@ -82,6 +98,18 @@ export function LoginForm() {
         <form onSubmit={handleRequestOtp}>
           <CardContent className="space-y-4">
             {error ? <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-600">{error}</p> : null}
+            {supportsPasskeys ? (
+              <>
+                <Button type="button" variant="outline" className="w-full" disabled={isPasskeyPending} onClick={() => void handlePasskey()}>
+                  {isPasskeyPending ? "Waiting for passkey..." : "Use passkey"}
+                </Button>
+                <div className="flex items-center gap-3 text-xs uppercase tracking-[0.18em] text-slate-400">
+                  <span className="h-px flex-1 bg-slate-200" />
+                  <span>or use email code</span>
+                  <span className="h-px flex-1 bg-slate-200" />
+                </div>
+              </>
+            ) : null}
             <div className="space-y-2">
               <label className="text-sm font-medium" htmlFor="email">
                 Email
@@ -99,7 +127,7 @@ export function LoginForm() {
             </div>
           </CardContent>
           <CardFooter className="flex justify-end">
-            <Button type="submit" className="w-full" disabled={isPending}>
+            <Button type="submit" className="w-full" disabled={isPending || isPasskeyPending}>
               {isPending ? "Sending code..." : "Send code"}
             </Button>
           </CardFooter>

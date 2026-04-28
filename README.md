@@ -37,12 +37,24 @@ Examples:
 
 The goal is to help people install working life systems, not just collect disconnected ritual ideas from the internet.
 
+## Package System
+
+Cycle now includes a first package system.
+
+- A package is a single JSON definition with package metadata plus item definitions.
+- Each item includes the timeframe, emoji, title, description, goal, and section.
+- Installing a package adds its items into your rituals/upkeep list.
+- Updating a package refreshes package-managed titles and descriptions, and appends newly published items without touching your history.
+- Removing a package deletes the items that came from that package.
+
+For convenience, the current registry is internal to the backend. The long-term direction is to move that registry into a separate repository so packages can be curated and published independently.
+
 ## Repo Structure
 
 - `apps/frontend`
   React + Vite app
 - `apps/backend`
-  Elysia + SQLite API with OTP auth and Swagger
+  Elysia + SQLite API with OTP auth, passkeys, Swagger, and the internal package registry
 
 ## Run Locally
 
@@ -57,6 +69,43 @@ Run frontend and backend together from the repo root:
 ```bash
 make dev
 ```
+
+This starts:
+
+- frontend on `http://localhost:3100`
+- backend on `http://localhost:3101`
+- Swagger docs on `http://localhost:3101/swagger`
+
+## Passkeys
+
+Cycle now supports passkeys for returning users.
+
+- Sign in once with email OTP.
+- Open Settings and register a passkey for the current device.
+- Use the passkey button on the login screen on future sign-ins.
+
+WebAuthn defaults:
+
+- `WEBAUTHN_RP_NAME=Cycle`
+- `WEBAUTHN_RP_ID` defaults to the hostname from `FRONTEND_URL`
+- `WEBAUTHN_ORIGINS` defaults to `FRONTEND_URL` and accepts a comma-separated list
+- For local passkey testing, use `http://localhost:3100` instead of `http://127.0.0.1:3100`
+
+## Internal Auth Bypass
+
+For trusted internal deployments, Cycle can skip login entirely and auto-authenticate a single default user.
+
+- `AUTH_BYPASS_ENABLED=true`
+- `AUTH_BYPASS_EMAIL=internal@cycle.local`
+- `AUTH_BYPASS_DISPLAY_NAME=Internal User`
+
+When enabled:
+
+- the backend treats all requests as the configured default user
+- the frontend auto-loads that user on startup
+- the logout control is hidden
+
+This mode is intended only for private internal networks you control.
 
 Or run them separately:
 

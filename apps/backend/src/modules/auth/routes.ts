@@ -18,6 +18,10 @@ function defaultDisplayName(email: string) {
   return email.split("@")[0] || "habit-user"
 }
 
+function authMode(config: AppConfig) {
+  return config.authBypassEnabled ? "bypass" : "standard"
+}
+
 export function createAuthRoutes(services: {
   db: AppDatabase
   config: AppConfig
@@ -25,10 +29,29 @@ export function createAuthRoutes(services: {
   const { db, config } = services
 
   return new Elysia({ prefix: "/auth" })
+    .get(
+      "/mode",
+      () =>
+        ok({
+          mode: authMode(config),
+        }),
+      {
+        detail: {
+          tags: ["Authentication"],
+          summary: "Authentication mode",
+          description: "Return the current authentication mode for the deployment.",
+        },
+      },
+    )
     .post(
       "/request-otp",
       async (context: RouteContext) => {
         const { body, set } = context
+
+        if (config.authBypassEnabled) {
+          return fail(set, 403, "AUTH_BYPASS_ENABLED", "Authentication is managed by deployment configuration.")
+        }
+
         const email = normalizeEmail(body.email)
         const now = new Date()
         const requestWindowStart = new Date(now.getTime() - config.otpRequestWindowMinutes * 60_000)
@@ -118,6 +141,11 @@ export function createAuthRoutes(services: {
       "/verify-otp",
       async (context: RouteContext) => {
         const { body, set, accessJwt, refreshJwt } = context
+
+        if (config.authBypassEnabled) {
+          return fail(set, 403, "AUTH_BYPASS_ENABLED", "Authentication is managed by deployment configuration.")
+        }
+
         const email = normalizeEmail(body.email)
         const code = body.code.trim()
 
@@ -219,6 +247,8 @@ export function createAuthRoutes(services: {
             id: user.id,
             email: user.email,
             displayName: user.displayName,
+            lastLoginAt: user.lastLoginAt?.toISOString() ?? null,
+            authMode: authMode(config),
           },
         })
       },
@@ -239,6 +269,11 @@ export function createAuthRoutes(services: {
       "/refresh",
       async (context: RouteContext) => {
         const { body, set, accessJwt, refreshJwt } = context
+
+        if (config.authBypassEnabled) {
+          return fail(set, 403, "AUTH_BYPASS_ENABLED", "Authentication is managed by deployment configuration.")
+        }
+
         const payload = await refreshJwt.verify(body.refreshToken)
 
         if (!payload || typeof payload !== "object" || !("sub" in payload) || payload.type !== "refresh") {
@@ -302,6 +337,7 @@ export function createAuthRoutes(services: {
           email: user.email,
           displayName: user.displayName,
           lastLoginAt: user.lastLoginAt?.toISOString() ?? null,
+          authMode: authMode(config),
         })
       },
       {
@@ -314,10 +350,15 @@ export function createAuthRoutes(services: {
     )
     .post(
       "/logout",
-      () =>
-        ok({
+      ({ set }) => {
+        if (config.authBypassEnabled) {
+          return fail(set, 403, "AUTH_BYPASS_ENABLED", "Authentication is managed by deployment configuration.")
+        }
+
+        return ok({
           message: "Logged out successfully.",
-        }),
+        })
+      },
       {
         detail: {
           tags: ["Authentication"],
