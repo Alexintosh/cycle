@@ -15,7 +15,7 @@ services:
       EMAIL_SERVICE_API_KEY: ${EMAIL_SERVICE_API_KEY:-}
       EMAIL_FROM: ${EMAIL_FROM:-noreply@example.com}
     ports:
-      - "3101:3101"
+      - "127.0.0.1:${BACKEND_PORT:-3101}:3101"
     volumes:
       - habit_tracker_data:/app/apps/backend/data
     restart: unless-stopped
@@ -25,11 +25,12 @@ services:
       context: ./apps/frontend
       dockerfile: Dockerfile
       args:
-        VITE_API_BASE_URL: /api
+        VITE_BASE_PATH: ${VITE_BASE_PATH:-/}
+        VITE_API_BASE_URL: ${VITE_API_BASE_URL:-__AUTO__}
     depends_on:
       - backend
     ports:
-      - "3000:80"
+      - "127.0.0.1:${FRONTEND_PORT:-3000}:80"
     restart: unless-stopped
 
 volumes:

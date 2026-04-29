@@ -132,3 +132,19 @@ docker compose up --build
 The frontend is served on `http://localhost:3000`.
 
 The backend data lives in the named Docker volume `habit_tracker_data`, so the SQLite database survives redeploys unless you explicitly remove that volume.
+
+For a subpath deployment such as `/cycle`, build with a base path and point the frontend API at the reverse-proxied backend route:
+
+```bash
+FRONTEND_URL=https://example.internal/cycle \
+FRONTEND_PORT=3200 \
+BACKEND_PORT=3201 \
+VITE_BASE_PATH=/cycle/ \
+VITE_API_BASE_URL=/cycle/api \
+docker compose up --build -d
+```
+
+Then put a reverse proxy in front of the stack with two path rules:
+
+- `/cycle/api/*` -> backend, stripping `/cycle/api`
+- `/cycle/*` -> frontend, stripping `/cycle`

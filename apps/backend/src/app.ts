@@ -18,6 +18,7 @@ export async function createApp(configOverrides: Partial<AppConfig> & { packageR
     ...loadConfig(),
     ...configOverrides,
   }
+  const frontendOrigin = normalizeOrigin(config.frontendUrl)
 
   const { client, db } = createDatabase(config.databaseUrl)
   await initializeDatabase(client)
@@ -38,7 +39,7 @@ export async function createApp(configOverrides: Partial<AppConfig> & { packageR
             return true
           }
 
-          return origin === config.frontendUrl
+          return origin === frontendOrigin
         },
         credentials: true,
       }),
@@ -106,6 +107,14 @@ function ok<T>(data: T) {
   return {
     success: true as const,
     data,
+  }
+}
+
+function normalizeOrigin(value: string) {
+  try {
+    return new URL(value).origin
+  } catch {
+    return value
   }
 }
 

@@ -13,7 +13,18 @@ import type {
   User,
 } from "@/lib/types"
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:3101"
+function normalizeBasePath(baseUrl: string) {
+  if (baseUrl === "/") {
+    return ""
+  }
+
+  return baseUrl.endsWith("/") ? baseUrl.slice(0, -1) : baseUrl
+}
+
+const APP_BASE_PATH = normalizeBasePath(import.meta.env.BASE_URL ?? "/")
+const apiBaseUrlOverride = import.meta.env.VITE_API_BASE_URL
+const API_BASE_URL =
+  apiBaseUrlOverride && apiBaseUrlOverride !== "__AUTO__" ? apiBaseUrlOverride : `${APP_BASE_PATH}/api`
 
 type SuccessResponse<T> = {
   success: true
