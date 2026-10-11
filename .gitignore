@@ -25,3 +25,15 @@ yarn-error.log*
 
 # macOS
 .DS_Store
+
+# Cloudflare and private migration artifacts
+.wrangler/
+.dev.vars*
+/backups/
+/apps/backend/dist/
+
+# Local configuration example and generated tooling outputs
+!**/.dev.vars.example
+/apps/frontend/vite.config.js
+/apps/frontend/vite.config.d.ts
+__pycache__/

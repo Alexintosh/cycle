@@ -4,7 +4,7 @@ import { oneTimePasswords } from "../src/db/schema.ts"
 import { compareVersions, getVersionStatus } from "../src/modules/packages/helpers.ts"
 import { createPackageCatalog } from "../src/modules/packages/service.ts"
 import type { PackageRegistry } from "../src/modules/packages/types.ts"
-import { createTestServer, jsonOf } from "./helpers.ts"
+import { deliveredOtps, createTestServer, jsonOf } from "./helpers.ts"
 
 async function createAuthenticatedContext(options: { databaseUrl?: string; packageRegistry?: PackageRegistry } = {}) {
   const server = await createTestServer(options)
@@ -33,7 +33,7 @@ async function createAuthenticatedContext(options: { databaseUrl?: string; packa
       headers: {
         "content-type": "application/json",
       },
-      body: JSON.stringify({ email, code: otp!.code }),
+      body: JSON.stringify({ email, code: deliveredOtps.get(email) }),
     }),
   )
 

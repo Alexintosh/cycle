@@ -100,7 +100,7 @@ export async function listHabits(db: AppDatabase, options: HabitListOptions) {
   let logsByHabitId = new Map<string, HabitLogRecord[]>()
 
   if (includeLogs) {
-    const logConditions = [inArray(habitLogs.habitId, rows.map((habit) => habit.id))]
+    const logConditions = [inArray(habitLogs.habitId, db.select({ id: habits.id }).from(habits).where(and(...where)))]
     if (range.startDate) {
       logConditions.push(gte(habitLogs.logDate, range.startDate))
     }

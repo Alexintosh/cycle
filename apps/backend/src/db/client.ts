@@ -1,10 +1,16 @@
 import { mkdirSync } from "node:fs"
 import { dirname, resolve } from "node:path"
 import { createClient, type Client } from "@libsql/client"
-import { drizzle, type LibSQLDatabase } from "drizzle-orm/libsql"
+import { drizzle } from "drizzle-orm/libsql"
 import * as schema from "./schema.ts"
 
-export type AppDatabase = LibSQLDatabase<typeof schema>
+import type { BatchItem } from "drizzle-orm/batch"
+
+import type { BaseSQLiteDatabase } from "drizzle-orm/sqlite-core"
+
+export type AppDatabase = BaseSQLiteDatabase<"async", unknown, typeof schema> & {
+  batch(queries: readonly [BatchItem<"sqlite">, ...BatchItem<"sqlite">[]]): Promise<unknown>
+}
 
 function resolveLocalDatabasePath(databaseUrl: string) {
   if (!databaseUrl.startsWith("file:")) {

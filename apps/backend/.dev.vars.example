@@ -1,0 +1,7 @@
+# Copy to .dev.vars for Wrangler development. Never commit real secrets.
+NODE_ENV=development
+FRONTEND_URL=http://localhost:8787
+# Generate a random value of at least 32 characters.
+JWT_SECRET=
+# Passkey signup and recovery need no email service.
+EMAIL_AUTH_ENABLED=false

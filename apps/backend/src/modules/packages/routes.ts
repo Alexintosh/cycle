@@ -28,16 +28,17 @@ export function createPackageRoutes(services: {
     registry: packageRegistry,
   })
 
-  return new Elysia({ prefix: "/packages" })
+  return new Elysia({ aot: false, normalize: "typebox", prefix: "/packages" })
     .get(
       "/registry",
       async (context: RouteContext) => {
-        const { headers, set, accessJwt } = context
+        const { headers, set, accessTokens } = context
         const user = await getAuthenticatedUser({
           authorization: headers.authorization,
           set,
-          accessJwt,
+          accessTokens,
           db,
+          config,
         })
 
         if (!user) {
@@ -62,12 +63,13 @@ export function createPackageRoutes(services: {
     .get(
       "/installed",
       async (context: RouteContext) => {
-        const { headers, set, accessJwt } = context
+        const { headers, set, accessTokens } = context
         const user = await getAuthenticatedUser({
           authorization: headers.authorization,
           set,
-          accessJwt,
+          accessTokens,
           db,
+          config,
         })
 
         if (!user) {
@@ -87,12 +89,13 @@ export function createPackageRoutes(services: {
     .post(
       "/:packageId/install",
       async (context: RouteContext) => {
-        const { headers, params, set, accessJwt } = context
+        const { headers, params, set, accessTokens } = context
         const user = await getAuthenticatedUser({
           authorization: headers.authorization,
           set,
-          accessJwt,
+          accessTokens,
           db,
+          config,
         })
 
         if (!user) {
@@ -128,12 +131,13 @@ export function createPackageRoutes(services: {
     .post(
       "/:packageId/update",
       async (context: RouteContext) => {
-        const { headers, params, set, accessJwt } = context
+        const { headers, params, set, accessTokens } = context
         const user = await getAuthenticatedUser({
           authorization: headers.authorization,
           set,
-          accessJwt,
+          accessTokens,
           db,
+          config,
         })
 
         if (!user) {
@@ -166,12 +170,13 @@ export function createPackageRoutes(services: {
     .delete(
       "/:packageId",
       async (context: RouteContext) => {
-        const { headers, params, set, accessJwt } = context
+        const { headers, params, set, accessTokens } = context
         const user = await getAuthenticatedUser({
           authorization: headers.authorization,
           set,
-          accessJwt,
+          accessTokens,
           db,
+          config,
         })
 
         if (!user) {

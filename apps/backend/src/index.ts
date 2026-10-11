@@ -1,4 +1,4 @@
-import { createApp } from "./app.ts"
+import { createApp } from "./local-app.ts"
 
 const { app, config } = await createApp()
 const host = "0.0.0.0"

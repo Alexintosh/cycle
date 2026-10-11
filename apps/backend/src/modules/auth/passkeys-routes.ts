@@ -10,8 +10,9 @@ import {
   verifyAuthenticationResponse,
   verifyRegistrationResponse,
 } from "@simplewebauthn/server"
-import { and, desc, eq, lt } from "drizzle-orm"
+import { and, desc, eq, lt, sql } from "drizzle-orm"
 import { Elysia, t } from "elysia"
+import { allowAuthRequest } from "./rate-limit.ts"
 import type { AppConfig } from "../../config.ts"
 import type { AppDatabase } from "../../db/client.ts"
 import { passkeys, users, webauthnChallenges, type UserRecord } from "../../db/schema.ts"
@@ -45,16 +46,7 @@ function serializeUser(user: UserRecord, config: AppConfig) {
 }
 
 async function issueSession(context: RouteContext, user: UserRecord, config: AppConfig) {
-  const { accessJwt, refreshJwt } = context
-  const token = await accessJwt.sign({
-    sub: user.id,
-    email: user.email,
-  })
-
-  const refreshToken = await refreshJwt.sign({
-    sub: user.id,
-    type: "refresh",
-  })
+  const { token, refreshToken } = await context.sessions.issue(user.id)
 
   return {
     token,
@@ -103,17 +95,10 @@ async function consumeChallenge(input: {
   challengeId: string
   purpose: ChallengePurpose
 }) {
-  const [challenge] = await input.db
-    .select()
-    .from(webauthnChallenges)
+  const [challenge] = await input.db.delete(webauthnChallenges)
     .where(and(eq(webauthnChallenges.id, input.challengeId), eq(webauthnChallenges.purpose, input.purpose)))
-    .limit(1)
-
-  if (!challenge) {
-    return null
-  }
-
-  await input.db.delete(webauthnChallenges).where(eq(webauthnChallenges.id, challenge.id))
+    .returning()
+  if (!challenge) return null
 
   if (challenge.expiresAt.getTime() < Date.now()) {
     return null
@@ -158,11 +143,11 @@ export function createPasskeyRoutes(services: {
   const bypassDisabledResponse = (set: { status?: number | string }) =>
     fail(set, 403, "AUTH_BYPASS_ENABLED", "Authentication is managed by deployment configuration.")
 
-  return new Elysia({ prefix: "/auth/passkeys" })
+  return new Elysia({ aot: false, normalize: "typebox", prefix: "/auth/passkeys" })
     .get(
       "/",
       async (context: RouteContext) => {
-        const { headers, set, accessJwt } = context
+        const { headers, set, accessTokens } = context
 
         if (config.authBypassEnabled) {
           return bypassDisabledResponse(set)
@@ -171,8 +156,9 @@ export function createPasskeyRoutes(services: {
         const user = await getAuthenticatedUser({
           authorization: headers.authorization,
           set,
-          accessJwt,
+          accessTokens,
           db,
+          config,
         })
 
         if (!user) {
@@ -193,7 +179,7 @@ export function createPasskeyRoutes(services: {
     .post(
       "/register/options",
       async (context: RouteContext) => {
-        const { headers, set, accessJwt } = context
+        const { headers, set, accessTokens } = context
 
         if (config.authBypassEnabled) {
           return bypassDisabledResponse(set)
@@ -202,8 +188,9 @@ export function createPasskeyRoutes(services: {
         const user = await getAuthenticatedUser({
           authorization: headers.authorization,
           set,
-          accessJwt,
+          accessTokens,
           db,
+          config,
         })
 
         if (!user) {
@@ -253,7 +240,7 @@ export function createPasskeyRoutes(services: {
     .post(
       "/register/verify",
       async (context: RouteContext) => {
-        const { body, headers, set, accessJwt } = context
+        const { body, headers, set, accessTokens } = context
 
         if (config.authBypassEnabled) {
           return bypassDisabledResponse(set)
@@ -262,8 +249,9 @@ export function createPasskeyRoutes(services: {
         const user = await getAuthenticatedUser({
           authorization: headers.authorization,
           set,
-          accessJwt,
+          accessTokens,
           db,
+          config,
         })
 
         if (!user) {
@@ -346,11 +334,13 @@ export function createPasskeyRoutes(services: {
     )
     .post(
       "/authenticate/options",
-      async ({ set }) => {
+      async ({ set, request }) => {
         if (config.authBypassEnabled) {
           return bypassDisabledResponse(set)
         }
 
+        const ip = request.headers.get("cf-connecting-ip")
+        if (ip && !await allowAuthRequest(db, `passkey-ip:${ip}`, 60, 10)) return fail(set, 429, "RATE_LIMITED", "Too many attempts. Try again later.")
         const options = await generateAuthenticationOptions({
           rpID: getExpectedRpId(config),
           userVerification: "required",
@@ -458,7 +448,7 @@ export function createPasskeyRoutes(services: {
     .delete(
       "/:passkeyId",
       async (context: RouteContext) => {
-        const { headers, params, set, accessJwt } = context
+        const { headers, params, set, accessTokens } = context
 
         if (config.authBypassEnabled) {
           return bypassDisabledResponse(set)
@@ -467,8 +457,9 @@ export function createPasskeyRoutes(services: {
         const user = await getAuthenticatedUser({
           authorization: headers.authorization,
           set,
-          accessJwt,
+          accessTokens,
           db,
+          config,
         })
 
         if (!user) {
@@ -485,7 +476,11 @@ export function createPasskeyRoutes(services: {
           return fail(set, 404, "PASSKEY_NOT_FOUND", "Passkey not found.")
         }
 
-        await db.delete(passkeys).where(eq(passkeys.id, ownedPasskey.id))
+        const [removed] = await db.delete(passkeys).where(and(
+          eq(passkeys.id, ownedPasskey.id),
+          config.emailAuthEnabled ? undefined : sql`(SELECT COUNT(*) FROM passkeys WHERE user_id = ${user.id}) > 1`,
+        )).returning()
+        if (!removed) return fail(set, 409, "LAST_PASSKEY", "Add another passkey before removing this one.")
 
         return ok({
           removed: true,

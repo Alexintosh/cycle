@@ -1,29 +1,39 @@
 import { cors } from "@elysiajs/cors"
-import { jwt } from "@elysiajs/jwt"
 import { swagger } from "@elysiajs/swagger"
 import { Elysia } from "elysia"
-import { loadConfig, type AppConfig } from "./config.ts"
-import { createDatabase, type AppDatabase } from "./db/client.ts"
-import { initializeDatabase } from "./db/init.ts"
+import { type AppConfig } from "./config.ts"
+import type { AppDatabase } from "./db/client.ts"
+import { createSessionTokens } from "./modules/auth/sessions.ts"
+import { createEnrollmentRoutes } from "./modules/auth/enrollment-routes.ts"
 import { createAuthRoutes } from "./modules/auth/routes.ts"
 import { createPasskeyRoutes } from "./modules/auth/passkeys-routes.ts"
 import { createHabitRoutes } from "./modules/habits/routes.ts"
 import { createPackageRoutes } from "./modules/packages/routes.ts"
 import type { PackageRegistry } from "./modules/packages/types.ts"
 
-export type AppInstance = Awaited<ReturnType<typeof createApp>>
+export type AppInstance = ReturnType<typeof createRuntime>
 
-export async function createApp(configOverrides: Partial<AppConfig> & { packageRegistry?: PackageRegistry } = {}) {
-  const config = {
-    ...loadConfig(),
-    ...configOverrides,
-  }
+export function createRuntime(db: AppDatabase, config: AppConfig, options: {
+  packageRegistry?: PackageRegistry
+  sendOtp?: (config: AppConfig, email: string, code: string) => Promise<void>
+} = {}) {
   const frontendOrigin = normalizeOrigin(config.frontendUrl)
+  const tokens = createSessionTokens(db, config)
 
-  const { client, db } = createDatabase(config.databaseUrl)
-  await initializeDatabase(client)
-
-  const app = new Elysia()
+  const app = new Elysia({ aot: false, normalize: "typebox" })
+    .onError(({ code, set }) => {
+      if (code === "NOT_FOUND") {
+        set.status = 404
+        return { success: false, error: { code: "NOT_FOUND", message: "Route not found." } }
+      }
+      if (code === "VALIDATION" || code === "PARSE") {
+        set.status = 400
+        return { success: false, error: { code: "INVALID_REQUEST", message: "Invalid request." } }
+      }
+      set.status = 500
+      console.error(JSON.stringify({ event: "request.failed", kind: code }))
+      return { success: false, error: { code: "INTERNAL_ERROR", message: "Request failed." } }
+    })
     .use(
       cors({
         origin: (request) => {
@@ -44,20 +54,8 @@ export async function createApp(configOverrides: Partial<AppConfig> & { packageR
         credentials: true,
       }),
     )
-    .use(
-      jwt({
-        name: "accessJwt",
-        secret: config.jwtSecret,
-        exp: config.accessTokenTtl,
-      }),
-    )
-    .use(
-      jwt({
-        name: "refreshJwt",
-        secret: config.jwtSecret,
-        exp: config.refreshTokenTtl,
-      }),
-    )
+    .decorate("accessTokens", tokens.access)
+    .decorate("sessions", tokens)
     .use(
       swagger({
         path: "/swagger",
@@ -90,15 +88,15 @@ export async function createApp(configOverrides: Partial<AppConfig> & { packageR
         timestamp: new Date().toISOString(),
       }),
     )
-    .use(createAuthRoutes({ db, config }))
+    .use(createAuthRoutes({ db, config, sendOtp: options.sendOtp }))
+    .use(createEnrollmentRoutes({ db, config }))
     .use(createPasskeyRoutes({ db, config }))
     .use(createHabitRoutes({ db, config }))
-    .use(createPackageRoutes({ db, config, packageRegistry: configOverrides.packageRegistry }))
+    .use(createPackageRoutes({ db, config, packageRegistry: options.packageRegistry }))
 
   return {
     app,
     db,
-    client,
     config,
   }
 }

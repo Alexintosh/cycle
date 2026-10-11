@@ -1,3 +1,4 @@
+import { allowAuthRequest } from "./rate-limit.ts"
 import { and, desc, eq, gte, isNull, sql } from "drizzle-orm"
 import { Elysia, t } from "elysia"
 import type { AppConfig } from "../../config.ts"
@@ -6,7 +7,7 @@ import { oneTimePasswords, users } from "../../db/schema.ts"
 import { ok, fail } from "../../lib/api.ts"
 import { seedStarterHabitsForUser } from "../../db/seed.ts"
 import { getAuthenticatedUser } from "../../plugins/auth.ts"
-import { generateOtp, sendOtpEmail } from "../../services/otp.ts"
+import { generateOtp, hashOtp, sendOtpEmail } from "../../services/otp.ts"
 
 type RouteContext = any
 
@@ -25,10 +26,11 @@ function authMode(config: AppConfig) {
 export function createAuthRoutes(services: {
   db: AppDatabase
   config: AppConfig
+  sendOtp?: typeof sendOtpEmail
 }) {
   const { db, config } = services
 
-  return new Elysia({ prefix: "/auth" })
+  return new Elysia({ aot: false, normalize: "typebox", prefix: "/auth" })
     .get(
       "/mode",
       () =>
@@ -52,27 +54,14 @@ export function createAuthRoutes(services: {
           return fail(set, 403, "AUTH_BYPASS_ENABLED", "Authentication is managed by deployment configuration.")
         }
 
+        if (!config.emailAuthEnabled) return fail(set, 403, "EMAIL_AUTH_DISABLED", "Use a passkey or recovery code to access your account.")
         const email = normalizeEmail(body.email)
         const now = new Date()
-        const requestWindowStart = new Date(now.getTime() - config.otpRequestWindowMinutes * 60_000)
-
-        const [rateLimitRow] = await db
-          .select({
-            count: sql<number>`count(*)`,
-          })
-          .from(oneTimePasswords)
-          .where(and(eq(oneTimePasswords.email, email), gte(oneTimePasswords.createdAt, requestWindowStart)))
-
-        if ((rateLimitRow?.count ?? 0) >= config.otpRequestLimit) {
-          return fail(
-            set,
-            429,
-            "RATE_LIMITED",
-            "Too many OTP requests. Please try again later.",
-            {
-              retryAfterMinutes: config.otpRequestWindowMinutes,
-            },
-          )
+        const ip = context.request.headers.get("cf-connecting-ip")
+        const emailAllowed = await allowAuthRequest(db, `email:${email}`, config.otpRequestLimit, config.otpRequestWindowMinutes)
+        const ipAllowed = !ip || await allowAuthRequest(db, `ip:${ip}`, 30, config.otpRequestWindowMinutes)
+        if (!emailAllowed || !ipAllowed) {
+          return fail(set, 429, "RATE_LIMITED", "Too many OTP requests. Please try again later.")
         }
 
         const [existingActiveOtp] = await db
@@ -102,10 +91,11 @@ export function createAuthRoutes(services: {
         const code = generateOtp()
         const expiresAt = new Date(now.getTime() + config.otpExpiryMinutes * 60_000)
 
+        const otpId = crypto.randomUUID()
         await db.insert(oneTimePasswords).values({
-          id: crypto.randomUUID(),
+          id: otpId,
           email,
-          code,
+          code: await hashOtp(config, email, code),
           attempts: 0,
           maxAttempts: config.otpMaxAttempts,
           expiresAt,
@@ -113,9 +103,10 @@ export function createAuthRoutes(services: {
         })
 
         try {
-          await sendOtpEmail(config, email, code)
+          await (services.sendOtp ?? sendOtpEmail)(config, email, code)
         } catch (error) {
-          console.error("Failed to send OTP email:", error)
+          await db.delete(oneTimePasswords).where(eq(oneTimePasswords.id, otpId))
+          console.error("Failed to deliver verification email")
           return fail(set, 500, "EMAIL_SEND_FAILED", "Failed to send verification email.")
         }
 
@@ -140,19 +131,20 @@ export function createAuthRoutes(services: {
     .post(
       "/verify-otp",
       async (context: RouteContext) => {
-        const { body, set, accessJwt, refreshJwt } = context
+        const { body, set, sessions } = context
 
         if (config.authBypassEnabled) {
           return fail(set, 403, "AUTH_BYPASS_ENABLED", "Authentication is managed by deployment configuration.")
         }
 
+        if (!config.emailAuthEnabled) return fail(set, 403, "EMAIL_AUTH_DISABLED", "Use a passkey or recovery code to access your account.")
         const email = normalizeEmail(body.email)
         const code = body.code.trim()
 
         const [otp] = await db
           .select()
           .from(oneTimePasswords)
-          .where(eq(oneTimePasswords.email, email))
+          .where(and(eq(oneTimePasswords.email, email), isNull(oneTimePasswords.usedAt)))
           .orderBy(desc(oneTimePasswords.createdAt))
           .limit(1)
 
@@ -172,11 +164,11 @@ export function createAuthRoutes(services: {
           return fail(set, 400, "MAX_ATTEMPTS_EXCEEDED", "Too many verification attempts. Please request a new code.")
         }
 
-        if (otp.code !== code) {
+        if (otp.code !== await hashOtp(config, email, code)) {
           const attempts = otp.attempts + 1
           await db
             .update(oneTimePasswords)
-            .set({ attempts })
+            .set({ attempts: sql`${oneTimePasswords.attempts} + 1` })
             .where(eq(oneTimePasswords.id, otp.id))
 
           return fail(set, 400, "INVALID_CODE", "Invalid verification code.", {
@@ -185,18 +177,22 @@ export function createAuthRoutes(services: {
         }
 
         const now = new Date()
-        await db
-          .update(oneTimePasswords)
-          .set({
-            usedAt: now,
-            attempts: otp.attempts + 1,
-          })
-          .where(eq(oneTimePasswords.id, otp.id))
+        const [consumed] = await db.update(oneTimePasswords).set({
+          usedAt: now,
+          attempts: sql`${oneTimePasswords.attempts} + 1`,
+        }).where(and(
+          eq(oneTimePasswords.id, otp.id), isNull(oneTimePasswords.usedAt),
+          gte(oneTimePasswords.expiresAt, now),
+          sql`${oneTimePasswords.attempts} < ${oneTimePasswords.maxAttempts}`,
+        )).returning()
+        if (!consumed) return fail(set, 400, "CODE_ALREADY_USED", "Verification code is no longer available.")
 
+        let isNewUser = false
         let [user] = await db.select().from(users).where(eq(users.email, email)).limit(1)
         const displayName = body.displayName?.trim()
 
         if (!user) {
+          isNewUser = true
           const [createdUser] = await db
             .insert(users)
             .values({
@@ -225,20 +221,12 @@ export function createAuthRoutes(services: {
         }
 
         try {
-          await seedStarterHabitsForUser(db, user.id)
+          if (isNewUser) await seedStarterHabitsForUser(db, user.id)
         } catch (error) {
           console.error("Failed to seed starter habits:", error)
         }
 
-        const token = await accessJwt.sign({
-          sub: user.id,
-          email: user.email,
-        })
-
-        const refreshToken = await refreshJwt.sign({
-          sub: user.id,
-          type: "refresh",
-        })
+        const { token, refreshToken } = await sessions.issue(user.id)
 
         return ok({
           token,
@@ -268,37 +256,15 @@ export function createAuthRoutes(services: {
     .post(
       "/refresh",
       async (context: RouteContext) => {
-        const { body, set, accessJwt, refreshJwt } = context
+        const { body, set, sessions } = context
 
         if (config.authBypassEnabled) {
           return fail(set, 403, "AUTH_BYPASS_ENABLED", "Authentication is managed by deployment configuration.")
         }
 
-        const payload = await refreshJwt.verify(body.refreshToken)
-
-        if (!payload || typeof payload !== "object" || !("sub" in payload) || payload.type !== "refresh") {
-          return fail(set, 401, "INVALID_TOKEN", "Invalid or expired refresh token.")
-        }
-
-        const [user] = await db.select().from(users).where(eq(users.id, String(payload.sub))).limit(1)
-        if (!user) {
-          return fail(set, 401, "INVALID_TOKEN", "Invalid or expired refresh token.")
-        }
-
-        const token = await accessJwt.sign({
-          sub: user.id,
-          email: user.email,
-        })
-
-        const refreshToken = await refreshJwt.sign({
-          sub: user.id,
-          type: "refresh",
-        })
-
-        return ok({
-          token,
-          refreshToken,
-        })
+        const tokens = await sessions.rotate(body.refreshToken)
+        if (!tokens) return fail(set, 401, "INVALID_TOKEN", "Invalid or expired refresh token.")
+        return ok(tokens)
       },
       {
         body: t.Object({
@@ -314,23 +280,19 @@ export function createAuthRoutes(services: {
     .get(
       "/me",
       async (context: RouteContext) => {
-        const { headers, set, accessJwt } = context
+        const { headers, set, accessTokens } = context
         const user = await getAuthenticatedUser({
           authorization: headers.authorization,
           set,
-          accessJwt,
+          accessTokens,
           db,
+          config,
         })
 
         if (!user) {
           return fail(set, 401, "UNAUTHORIZED", "Authentication is required.")
         }
 
-        try {
-          await seedStarterHabitsForUser(db, user.id)
-        } catch (error) {
-          console.error("Failed to repair starter habits for /auth/me:", error)
-        }
 
         return ok({
           id: user.id,
@@ -350,11 +312,14 @@ export function createAuthRoutes(services: {
     )
     .post(
       "/logout",
-      ({ set }) => {
+      async (context: RouteContext) => {
+        const { set, headers, sessions } = context
         if (config.authBypassEnabled) {
           return fail(set, 403, "AUTH_BYPASS_ENABLED", "Authentication is managed by deployment configuration.")
         }
 
+        const token = headers.authorization?.replace(/^Bearer /, "")
+        if (token) await sessions.revoke(token)
         return ok({
           message: "Logged out successfully.",
         })
@@ -363,7 +328,7 @@ export function createAuthRoutes(services: {
         detail: {
           tags: ["Authentication"],
           summary: "Logout",
-          description: "Stateless logout endpoint for client token cleanup.",
+          description: "Revoke the current access and refresh session.",
         },
       },
     )

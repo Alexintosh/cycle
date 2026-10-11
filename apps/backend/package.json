@@ -6,11 +6,16 @@
     "dev": "bun --watch src/index.ts",
     "start": "bun src/index.ts",
     "test": "bun test",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "dev:cloudflare": "wrangler dev",
+    "db:migrate:local": "wrangler d1 migrations apply DB --local",
+    "db:migrate:remote": "wrangler d1 migrations apply DB --remote",
+    "build:worker": "wrangler deploy --dry-run --outdir dist",
+    "deploy": "wrangler deploy",
+    "test:worker": "bun run build:worker && node scripts/test-worker.mjs"
   },
   "dependencies": {
     "@elysiajs/cors": "^1.4.0",
-    "@elysiajs/jwt": "^1.4.0",
     "@elysiajs/swagger": "^1.3.1",
     "@libsql/client": "^0.15.15",
     "@simplewebauthn/server": "^13.0.0",
@@ -19,6 +24,9 @@
   },
   "devDependencies": {
     "@types/bun": "^1.3.2",
-    "typescript": "^5.9.3"
+    "typescript": "^5.9.3",
+    "wrangler": "~4.125.0",
+    "@cloudflare/workers-types": "5.20260828.1",
+    "miniflare": "5.20260820.0-alpha"
   }
 }

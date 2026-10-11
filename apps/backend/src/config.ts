@@ -16,7 +16,7 @@ export type AppConfig = {
   otpMaxAttempts: number
   otpRequestLimit: number
   otpRequestWindowMinutes: number
-  emailServiceApiKey?: string
+  emailAuthEnabled: boolean
   emailFrom: string
 }
 
@@ -63,7 +63,7 @@ function readHostname(url: string, fallback: string) {
   }
 }
 
-export function loadConfig(env: Record<string, string | undefined> = process.env): AppConfig {
+export function loadConfig(env: Record<string, string | undefined> = typeof process === "undefined" ? {} : process.env): AppConfig {
   const frontendUrl = env.FRONTEND_URL || "http://localhost:3100"
 
   return {
@@ -84,7 +84,7 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
     otpMaxAttempts: readNumber(env.OTP_MAX_ATTEMPTS, 5),
     otpRequestLimit: readNumber(env.OTP_REQUEST_LIMIT, 3),
     otpRequestWindowMinutes: readNumber(env.OTP_REQUEST_WINDOW_MINUTES, 10),
-    emailServiceApiKey: env.EMAIL_SERVICE_API_KEY,
+    emailAuthEnabled: readBoolean(env.EMAIL_AUTH_ENABLED, false),
     emailFrom: env.EMAIL_FROM || "noreply@example.com",
   }
 }

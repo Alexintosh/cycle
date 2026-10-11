@@ -1,15 +1,12 @@
-# Habit Tracker Backend
+# Cycle backend
 
-Elysia + SQLite backend for the rebuilt habit tracker.
-
-## Run
+Elysia with Drizzle, using SQLite for Bun/Docker and D1 for Cloudflare Workers.
 
 ```bash
-cd apps/backend
 bun install
 bun run dev
 ```
 
-The API boots with a local SQLite database at `apps/backend/data/habit-tracker.db` by default and exposes Swagger docs at `/swagger`.
+The local API uses `data/habit-tracker.db` and exposes Swagger at `/swagger`. The default auth uses an email identifier, passkey signup/login and one-use recovery codes. It needs no email provider. Legacy OTP is disabled unless EMAIL_AUTH_ENABLED=true and an email sender is configured. Codes are never logged by the application. Trusted private deployments can explicitly enable the legacy bypass mode. Cloudflare always requires individual user authentication.
 
-For Docker, the backend image copies that database into a persistent volume on first boot so redeploys keep the same data.
+For Workers/D1 setup, backup, migration, verification and deployment, follow [the Cloudflare guide](../../docs/cloudflare.md).

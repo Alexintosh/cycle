@@ -1,7 +1,7 @@
 import { describe, expect, it } from "bun:test"
 import { desc, eq } from "drizzle-orm"
 import { oneTimePasswords, passkeys } from "../src/db/schema.ts"
-import { createTestServer, jsonOf } from "./helpers.ts"
+import { deliveredOtps, createTestServer, jsonOf } from "./helpers.ts"
 
 async function createAuthenticatedContext() {
   const server = await createTestServer()
@@ -30,7 +30,7 @@ async function createAuthenticatedContext() {
       headers: {
         "content-type": "application/json",
       },
-      body: JSON.stringify({ email, code: otp!.code }),
+      body: JSON.stringify({ email, code: deliveredOtps.get(email) }),
     }),
   )
 

@@ -3,7 +3,7 @@ import { loadConfig, type AppConfig } from "../config.ts"
 import type { AppDatabase } from "../db/client.ts"
 import { users, type UserRecord } from "../db/schema.ts"
 
-type JwtVerifier = {
+type TokenVerifier = {
   verify(token: string): Promise<unknown>
 }
 
@@ -60,7 +60,7 @@ async function ensureBypassUser(db: AppDatabase, config: AppConfig) {
 export async function getAuthenticatedUser(input: {
   authorization?: string
   set: { status?: number | string }
-  accessJwt: JwtVerifier
+  accessTokens: TokenVerifier
   db: AppDatabase
   config?: AppConfig
 }): Promise<UserRecord | null> {
@@ -76,7 +76,7 @@ export async function getAuthenticatedUser(input: {
     return null
   }
 
-  const payload = await input.accessJwt.verify(token)
+  const payload = await input.accessTokens.verify(token)
   if (!payload || typeof payload !== "object" || !("sub" in payload) || typeof payload.sub !== "string") {
     input.set.status = 401
     return null

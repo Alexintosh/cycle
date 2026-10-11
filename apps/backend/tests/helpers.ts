@@ -2,9 +2,11 @@ import { mkdtempSync, rmSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { afterEach } from "bun:test"
-import { createApp } from "../src/app.ts"
+import { createApp } from "../src/local-app.ts"
 import type { AppConfig } from "../src/config.ts"
 import type { PackageRegistry } from "../src/modules/packages/types.ts"
+
+export const deliveredOtps = new Map<string, string>()
 
 const cleanupPaths: string[] = []
 const cleanupEnvSnapshots: Array<Record<string, string | undefined>> = []
@@ -70,7 +72,9 @@ export async function createTestServer(
   }
 
   return createApp({
+    sendOtp: async (_config, email, code) => { deliveredOtps.set(email, code) },
     env: "test",
+    emailAuthEnabled: true,
     databaseUrl,
     jwtSecret: "test-secret",
     packageRegistry: options.packageRegistry,
@@ -78,6 +82,6 @@ export async function createTestServer(
   })
 }
 
-export async function jsonOf(response: Response) {
+export async function jsonOf(response: Response): Promise<any> {
   return response.json()
 }

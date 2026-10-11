@@ -6,7 +6,8 @@
     "strict": true,
     "noEmit": true,
     "allowImportingTsExtensions": true,
-    "types": ["bun"],
+    "types": ["bun", "@cloudflare/workers-types"],
+    "resolveJsonModule": true,
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true
   },

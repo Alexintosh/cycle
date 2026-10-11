@@ -1,5 +1,6 @@
-import { readFileSync } from "node:fs"
-import { resolve } from "node:path"
+import type { BatchItem } from "drizzle-orm/batch"
+import { runBatch } from "../../db/batch.ts"
+import bundledRegistry from "./registry.json"
 import { and, asc, eq, inArray, sql } from "drizzle-orm"
 import type { AppDatabase } from "../../db/client.ts"
 import { habits, installedPackages, type InstalledPackageRecord } from "../../db/schema.ts"
@@ -14,10 +15,8 @@ import type {
 
 type PackageCatalogOptions = {
   registry?: PackageRegistry
-  registryPath?: string
 }
 
-const DEFAULT_REGISTRY_PATH = resolve(import.meta.dir, "registry.json")
 
 function isPackageTimeframe(value: string): value is PackageTimeframe {
   return ["daily", "weekly", "monthly", "quarterly", "semiannual", "yearly"].includes(value)
@@ -86,9 +85,7 @@ export function loadPackageRegistry(options: PackageCatalogOptions = {}) {
     return normalizeRegistry(options.registry)
   }
 
-  const registryPath = options.registryPath ?? DEFAULT_REGISTRY_PATH
-  const content = readFileSync(registryPath, "utf8")
-  return normalizeRegistry(JSON.parse(content) as PackageRegistry)
+  return normalizeRegistry(bundledRegistry as PackageRegistry)
 }
 
 export function createPackageCatalog(options: PackageCatalogOptions = {}) {
@@ -202,7 +199,7 @@ export async function installPackageForUser(
   const now = new Date()
   const orderStart = await getNextOrderStart(db, userId)
 
-  await db.insert(installedPackages).values({
+  const queries: BatchItem<"sqlite">[] = [db.insert(installedPackages).values({
     id: crypto.randomUUID(),
     userId,
     packageId: pkg.id,
@@ -212,11 +209,10 @@ export async function installPackageForUser(
     installedVersion: pkg.version,
     installedAt: now,
     updatedAt: now,
-  })
+  })]
 
   if (pkg.items.length) {
-    await db.insert(habits).values(
-      pkg.items.map((item, index) => ({
+    queries.push(...pkg.items.map((item, index) => db.insert(habits).values({
         id: crypto.randomUUID(),
         userId,
         name: item.title,
@@ -232,9 +228,9 @@ export async function installPackageForUser(
         order: orderStart + index,
         createdAt: now,
         updatedAt: now,
-      })),
-    )
+      })))
   }
+  await runBatch(db, queries)
 
   const [installedRow] = await db
     .select()
@@ -276,6 +272,7 @@ export async function updateInstalledPackageForUser(
   )
 
   const now = new Date()
+  const queries: BatchItem<"sqlite">[] = []
   let updatedHabits = 0
 
   for (const item of pkg.items) {
@@ -286,14 +283,14 @@ export async function updateInstalledPackageForUser(
 
     const nextDescription = item.description || null
     if (existingHabit.name !== item.title || existingHabit.description !== nextDescription) {
-      await db
+      queries.push(db
         .update(habits)
         .set({
           name: item.title,
           description: nextDescription,
           updatedAt: now,
         })
-        .where(eq(habits.id, existingHabit.id))
+        .where(and(eq(habits.id, existingHabit.id), eq(habits.userId, userId))))
 
       updatedHabits += 1
     }
@@ -303,8 +300,7 @@ export async function updateInstalledPackageForUser(
   const orderStart = missingItems.length ? await getNextOrderStart(db, userId) : 0
 
   if (missingItems.length) {
-    await db.insert(habits).values(
-      missingItems.map((item, index) => ({
+    queries.push(...missingItems.map((item, index) => db.insert(habits).values({
         id: crypto.randomUUID(),
         userId,
         name: item.title,
@@ -320,11 +316,10 @@ export async function updateInstalledPackageForUser(
         order: orderStart + index,
         createdAt: now,
         updatedAt: now,
-      })),
-    )
+      })))
   }
 
-  await db
+  queries.push(db
     .update(installedPackages)
     .set({
       title: pkg.title,
@@ -333,7 +328,8 @@ export async function updateInstalledPackageForUser(
       installedVersion: pkg.version,
       updatedAt: now,
     })
-    .where(eq(installedPackages.id, installation.id))
+    .where(and(eq(installedPackages.id, installation.id), eq(installedPackages.userId, userId))))
+  await runBatch(db, queries)
 
   const [updatedInstallation] = await db
     .select()
@@ -358,8 +354,10 @@ export async function removeInstalledPackageForUser(db: AppDatabase, userId: str
     .from(habits)
     .where(and(eq(habits.userId, userId), eq(habits.packageId, packageId)))
 
-  await db.delete(habits).where(and(eq(habits.userId, userId), eq(habits.packageId, packageId)))
-  await db.delete(installedPackages).where(and(eq(installedPackages.userId, userId), eq(installedPackages.packageId, packageId)))
+  await db.batch([
+    db.delete(habits).where(and(eq(habits.userId, userId), eq(habits.packageId, packageId))),
+    db.delete(installedPackages).where(and(eq(installedPackages.userId, userId), eq(installedPackages.packageId, packageId))),
+  ])
 
   return {
     removed: true,

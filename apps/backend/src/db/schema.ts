@@ -149,3 +149,34 @@ export type OtpRecord = typeof oneTimePasswords.$inferSelect
 export type InstalledPackageRecord = typeof installedPackages.$inferSelect
 export type PasskeyRecord = typeof passkeys.$inferSelect
 export type WebAuthnChallengeRecord = typeof webauthnChallenges.$inferSelect
+
+export const sessions = sqliteTable("sessions", {
+  id: text("id").primaryKey(),
+  userId: text("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  accessHash: text("access_hash").notNull().unique(),
+  refreshHash: text("refresh_hash").notNull().unique(),
+  expiresAt: integer("expires_at", { mode: "timestamp" }).notNull(),
+  refreshExpiresAt: integer("refresh_expires_at", { mode: "timestamp" }).notNull(),
+}, (table) => ({ userIndex: index("sessions_user_idx").on(table.userId) }))
+
+export const authRateLimits = sqliteTable("auth_rate_limits", {
+  key: text("key").primaryKey(),
+  count: integer("count").notNull(),
+  expiresAt: integer("expires_at").notNull(),
+})
+
+export const authEnrollments = sqliteTable("auth_enrollments", {
+  id: text("id").primaryKey(),
+  email: text("email").notNull(),
+  displayName: text("display_name").notNull(),
+  userId: text("user_id").notNull(),
+  challenge: text("challenge").notNull(),
+  webauthnUserId: text("webauthn_user_id").notNull(),
+  expiresAt: integer("expires_at", { mode: "timestamp" }).notNull(),
+  recoveryHash: text("recovery_hash"),
+})
+export const recoveryCodes = sqliteTable("recovery_codes", {
+  hash: text("hash").primaryKey(),
+  userId: text("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  expiresAt: integer("expires_at", { mode: "timestamp" }),
+})

@@ -1,3 +1,5 @@
+import { runBatch } from "../../db/batch.ts"
+import type { BatchItem } from "drizzle-orm/batch"
 import { and, asc, desc, eq, inArray, sql } from "drizzle-orm"
 import { Elysia, t } from "elysia"
 import type { AppConfig } from "../../config.ts"
@@ -22,7 +24,7 @@ function normalizeOptionalString(value?: string | null) {
 }
 
 export function createHabitRoutes({ db, config }: RouteServices) {
-  return new Elysia()
+  return new Elysia({ aot: false, normalize: "typebox" })
     .get(
       "/frequencies",
       () => ok(listFrequencyDefinitions()),
@@ -37,12 +39,13 @@ export function createHabitRoutes({ db, config }: RouteServices) {
     .get(
       "/categories",
       async (context: RouteContext) => {
-        const { headers, set, accessJwt } = context
+        const { headers, set, accessTokens } = context
         const user = await getAuthenticatedUser({
           authorization: headers.authorization,
           set,
-          accessJwt,
+          accessTokens,
           db,
+          config,
         })
 
         if (!user) {
@@ -72,12 +75,13 @@ export function createHabitRoutes({ db, config }: RouteServices) {
     .get(
       "/habits",
       async (context: RouteContext) => {
-        const { headers, query, set, accessJwt } = context
+        const { headers, query, set, accessTokens } = context
         const user = await getAuthenticatedUser({
           authorization: headers.authorization,
           set,
-          accessJwt,
+          accessTokens,
           db,
+          config,
         })
 
         if (!user) {
@@ -117,12 +121,13 @@ export function createHabitRoutes({ db, config }: RouteServices) {
     .get(
       "/habits/completed-non-daily",
       async (context: RouteContext) => {
-        const { headers, query, set, accessJwt } = context
+        const { headers, query, set, accessTokens } = context
         const user = await getAuthenticatedUser({
           authorization: headers.authorization,
           set,
-          accessJwt,
+          accessTokens,
           db,
+          config,
         })
 
         if (!user) {
@@ -166,12 +171,13 @@ export function createHabitRoutes({ db, config }: RouteServices) {
     .get(
       "/habits/:habitId",
       async (context: RouteContext) => {
-        const { headers, params, query, set, accessJwt } = context
+        const { headers, params, query, set, accessTokens } = context
         const user = await getAuthenticatedUser({
           authorization: headers.authorization,
           set,
-          accessJwt,
+          accessTokens,
           db,
+          config,
         })
 
         if (!user) {
@@ -211,12 +217,13 @@ export function createHabitRoutes({ db, config }: RouteServices) {
     .post(
       "/habits",
       async (context: RouteContext) => {
-        const { headers, body, set, accessJwt } = context
+        const { headers, body, set, accessTokens } = context
         const user = await getAuthenticatedUser({
           authorization: headers.authorization,
           set,
-          accessJwt,
+          accessTokens,
           db,
+          config,
         })
 
         if (!user) {
@@ -279,12 +286,13 @@ export function createHabitRoutes({ db, config }: RouteServices) {
     .patch(
       "/habits/:habitId",
       async (context: RouteContext) => {
-        const { headers, params, body, set, accessJwt } = context
+        const { headers, params, body, set, accessTokens } = context
         const user = await getAuthenticatedUser({
           authorization: headers.authorization,
           set,
-          accessJwt,
+          accessTokens,
           db,
+          config,
         })
 
         if (!user) {
@@ -344,12 +352,13 @@ export function createHabitRoutes({ db, config }: RouteServices) {
     .delete(
       "/habits/:habitId",
       async (context: RouteContext) => {
-        const { headers, params, set, accessJwt } = context
+        const { headers, params, set, accessTokens } = context
         const user = await getAuthenticatedUser({
           authorization: headers.authorization,
           set,
-          accessJwt,
+          accessTokens,
           db,
+          config,
         })
 
         if (!user) {
@@ -385,20 +394,23 @@ export function createHabitRoutes({ db, config }: RouteServices) {
     .delete(
       "/habits",
       async (context: RouteContext) => {
-        const { headers, set, accessJwt } = context
+        const { headers, set, accessTokens } = context
         const user = await getAuthenticatedUser({
           authorization: headers.authorization,
           set,
-          accessJwt,
+          accessTokens,
           db,
+          config,
         })
 
         if (!user) {
           return fail(set, 401, "UNAUTHORIZED", "Authentication is required.")
         }
 
-        await db.delete(habits).where(eq(habits.userId, user.id))
-        await db.delete(installedPackages).where(eq(installedPackages.userId, user.id))
+        await db.batch([
+          db.delete(habits).where(eq(habits.userId, user.id)),
+          db.delete(installedPackages).where(eq(installedPackages.userId, user.id)),
+        ])
         return ok({ deleted: true })
       },
       {
@@ -412,12 +424,13 @@ export function createHabitRoutes({ db, config }: RouteServices) {
     .post(
       "/habits/reorder",
       async (context: RouteContext) => {
-        const { headers, body, set, accessJwt } = context
+        const { headers, body, set, accessTokens } = context
         const user = await getAuthenticatedUser({
           authorization: headers.authorization,
           set,
-          accessJwt,
+          accessTokens,
           db,
+          config,
         })
 
         if (!user) {
@@ -436,7 +449,7 @@ export function createHabitRoutes({ db, config }: RouteServices) {
           return fail(set, 400, "INVALID_HABITS", "One or more habits do not belong to the authenticated user.")
         }
 
-        await Promise.all(
+        await runBatch(db,
           body.items.map((item: { id: string; order: number; category: string }) =>
             db
               .update(habits)
@@ -445,7 +458,7 @@ export function createHabitRoutes({ db, config }: RouteServices) {
                 category: item.category.trim() || "OTHER",
                 updatedAt: new Date(),
               })
-              .where(eq(habits.id, item.id)),
+              .where(and(eq(habits.id, item.id), eq(habits.userId, user.id))),
           ),
         )
 
@@ -471,12 +484,13 @@ export function createHabitRoutes({ db, config }: RouteServices) {
     .post(
       "/habits/:habitId/logs",
       async (context: RouteContext) => {
-        const { headers, params, body, set, accessJwt } = context
+        const { headers, params, body, set, accessTokens } = context
         const user = await getAuthenticatedUser({
           authorization: headers.authorization,
           set,
-          accessJwt,
+          accessTokens,
           db,
+          config,
         })
 
         if (!user) {
@@ -510,7 +524,7 @@ export function createHabitRoutes({ db, config }: RouteServices) {
           createdAt: new Date(),
         }))
 
-        await db.insert(habitLogs).values(values)
+        await runBatch(db, values.map((value) => db.insert(habitLogs).values(value)))
         const response = await getHabitById(db, user.id, habit.id, {
           startDate: date,
           endDate: date,
@@ -537,12 +551,13 @@ export function createHabitRoutes({ db, config }: RouteServices) {
     .put(
       "/habits/:habitId/day-status",
       async (context: RouteContext) => {
-        const { headers, params, body, set, accessJwt } = context
+        const { headers, params, body, set, accessTokens } = context
         const user = await getAuthenticatedUser({
           authorization: headers.authorization,
           set,
-          accessJwt,
+          accessTokens,
           db,
+          config,
         })
 
         if (!user) {
@@ -607,12 +622,13 @@ export function createHabitRoutes({ db, config }: RouteServices) {
     .delete(
       "/habits/:habitId/logs/:logId",
       async (context: RouteContext) => {
-        const { headers, params, set, accessJwt } = context
+        const { headers, params, set, accessTokens } = context
         const user = await getAuthenticatedUser({
           authorization: headers.authorization,
           set,
-          accessJwt,
+          accessTokens,
           db,
+          config,
         })
 
         if (!user) {
@@ -657,12 +673,13 @@ export function createHabitRoutes({ db, config }: RouteServices) {
     .get(
       "/data/export",
       async (context: RouteContext) => {
-        const { headers, set, accessJwt } = context
+        const { headers, set, accessTokens } = context
         const user = await getAuthenticatedUser({
           authorization: headers.authorization,
           set,
-          accessJwt,
+          accessTokens,
           db,
+          config,
         })
 
         if (!user) {
@@ -685,7 +702,7 @@ export function createHabitRoutes({ db, config }: RouteServices) {
           ? await db
               .select()
               .from(habitLogs)
-              .where(inArray(habitLogs.habitId, userHabits.map((habit) => habit.id)))
+              .where(inArray(habitLogs.habitId, db.select({ id: habits.id }).from(habits).where(eq(habits.userId, user.id))))
               .orderBy(asc(habitLogs.logDate), asc(habitLogs.loggedAt))
           : []
 
@@ -739,12 +756,13 @@ export function createHabitRoutes({ db, config }: RouteServices) {
     .post(
       "/data/import",
       async (context: RouteContext) => {
-        const { headers, body, set, accessJwt } = context
+        const { headers, body, set, accessTokens } = context
         const user = await getAuthenticatedUser({
           authorization: headers.authorization,
           set,
-          accessJwt,
+          accessTokens,
           db,
+          config,
         })
 
         if (!user) {
@@ -758,16 +776,35 @@ export function createHabitRoutes({ db, config }: RouteServices) {
           }
         }
 
+        const habitIds = new Map<string, string>()
+        for (const habit of body.habits) {
+          if (habitIds.has(habit.id)) return fail(set, 400, "INVALID_IMPORT", "Duplicate habit IDs.")
+          habitIds.set(habit.id, crypto.randomUUID())
+        }
+        if (body.logs.some((log: any) => !habitIds.has(log.habitId))) {
+          return fail(set, 400, "INVALID_IMPORT", "Every log must refer to a habit in this snapshot.")
+        }
+        const dateFields = [
+          ...body.habits.flatMap((habit: any) => [habit.createdAt, habit.updatedAt]),
+          ...(body.packages ?? []).flatMap((pkg: any) => [pkg.installedAt, pkg.updatedAt]),
+          ...body.logs.flatMap((log: any) => [log.loggedAt, ...(log.createdAt ? [log.createdAt] : [])]),
+        ]
+        if (dateFields.some((date: string) => !Number.isFinite(new Date(date).getTime()))) {
+          return fail(set, 400, "INVALID_IMPORT", "Invalid snapshot timestamps.")
+        }
+        try { body.logs.forEach((log: any) => assertIsoDate(log.logDate)) }
+        catch { return fail(set, 400, "INVALID_IMPORT", "Invalid log date.") }
+        const queries: BatchItem<"sqlite">[] = []
         const mode = body.mode ?? "replace"
         if (mode === "replace") {
-          await db.delete(habits).where(eq(habits.userId, user.id))
-          await db.delete(installedPackages).where(eq(installedPackages.userId, user.id))
+          queries.push(db.delete(habits).where(eq(habits.userId, user.id)))
+          queries.push(db.delete(installedPackages).where(eq(installedPackages.userId, user.id)))
         }
 
         const now = new Date()
-        await db.insert(habits).values(
-          body.habits.map((habit: any) => ({
-            id: habit.id,
+        for (const habit of body.habits) queries.push(db.insert(habits).values(
+          {
+            id: habitIds.get(habit.id)!,
             userId: user.id,
             name: habit.name.trim(),
             description: normalizeOptionalString(habit.description),
@@ -782,13 +819,13 @@ export function createHabitRoutes({ db, config }: RouteServices) {
             order: habit.order,
             createdAt: new Date(habit.createdAt),
             updatedAt: new Date(habit.updatedAt),
-          })),
-        )
+          },
+        ))
 
         if (body.packages?.length) {
-          await db.insert(installedPackages).values(
-            body.packages.map((pkg: any) => ({
-              id: pkg.id,
+          for (const pkg of body.packages) queries.push(db.insert(installedPackages).values(
+            {
+              id: crypto.randomUUID(),
               userId: user.id,
               packageId: pkg.packageId,
               title: pkg.title.trim(),
@@ -797,21 +834,27 @@ export function createHabitRoutes({ db, config }: RouteServices) {
               installedVersion: pkg.installedVersion.trim(),
               installedAt: new Date(pkg.installedAt),
               updatedAt: new Date(pkg.updatedAt),
-            })),
-          )
+            },
+          ))
         }
 
         if (body.logs.length) {
-          await db.insert(habitLogs).values(
-            body.logs.map((log: any) => ({
-              id: log.id,
-              habitId: log.habitId,
+          for (const log of body.logs) queries.push(db.insert(habitLogs).values(
+            {
+              id: crypto.randomUUID(),
+              habitId: habitIds.get(log.habitId)!,
               logDate: assertIsoDate(log.logDate),
               loggedAt: new Date(log.loggedAt),
               note: normalizeOptionalString(log.note),
               createdAt: new Date(log.createdAt || now.toISOString()),
-            })),
-          )
+            },
+          ))
+        }
+
+        try {
+          await runBatch(db, queries)
+        } catch {
+          return fail(set, 400, "INVALID_IMPORT", "Snapshot conflicts with existing data; no changes were applied.")
         }
 
         return ok({
@@ -823,6 +866,7 @@ export function createHabitRoutes({ db, config }: RouteServices) {
       {
         body: t.Object({
           version: t.Optional(t.Number()),
+          exportedAt: t.Optional(t.String()),
           mode: t.Optional(t.Union([t.Literal("replace"), t.Literal("append")])),
           habits: t.Array(
             t.Object({

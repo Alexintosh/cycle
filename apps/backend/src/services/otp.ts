@@ -1,7 +1,9 @@
 import type { AppConfig } from "../config.ts"
 
 export function generateOtp() {
-  return Math.floor(100000 + Math.random() * 900000).toString()
+  const values = new Uint32Array(1)
+  do { crypto.getRandomValues(values) } while (values[0]! >= 4294800000)
+  return (100000 + values[0]! % 900000).toString()
 }
 
 function renderOtpEmail(code: string) {
@@ -17,45 +19,24 @@ function renderOtpEmail(code: string) {
   `
 }
 
-export async function sendOtpEmail(config: AppConfig, email: string, code: string) {
-  const isProduction = config.env === "production"
-
-  if (!isProduction || !config.emailServiceApiKey) {
-    console.log("═══════════════════════════════════════════")
-    console.log(`📧 OTP Email: ${email}`)
-    console.log(`🔐 Code: ${code}`)
-    console.log("═══════════════════════════════════════════")
-    return
+export function createOtpEmail(config: AppConfig, email: string, code: string): EmailMessageBuilder {
+  const minutes = config.otpExpiryMinutes
+  return {
+    to: email,
+    from: { email: config.emailFrom, name: "Cycle" },
+    subject: "Your Cycle verification code",
+    text: `Your verification code is ${code}. It expires in ${minutes} minutes.`,
+    html: renderOtpEmail(code).replace("expires in 10 minutes", `expires in ${minutes} minutes`),
   }
+}
 
-  const response = await fetch("https://api.sendgrid.com/v3/mail/send", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${config.emailServiceApiKey}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      personalizations: [{ to: [{ email }] }],
-      from: {
-        email: config.emailFrom,
-        name: "Cycle",
-      },
-      subject: "Your verification code",
-      content: [
-        {
-          type: "text/plain",
-          value: `Your verification code is ${code}. It expires in 10 minutes.`,
-        },
-        {
-          type: "text/html",
-          value: renderOtpEmail(code),
-        },
-      ],
-    }),
-  })
+export async function sendOtpEmail(_config: AppConfig, _email: string, _code: string): Promise<void> {
+  throw new Error("Email delivery requires the Cloudflare EMAIL binding. Run the Cloudflare Worker for email login.")
+}
 
-  if (!response.ok) {
-    const message = await response.text()
-    throw new Error(`Failed to send OTP email: ${message}`)
-  }
+export async function hashOtp(config: AppConfig, email: string, code: string) {
+  const key = await crypto.subtle.importKey("raw", new TextEncoder().encode(config.jwtSecret),
+    { name: "HMAC", hash: "SHA-256" }, false, ["sign"])
+  const signature = await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(`${email}:${code}`))
+  return Array.from(new Uint8Array(signature), (byte) => byte.toString(16).padStart(2, "0")).join("")
 }

@@ -34,8 +34,8 @@ typecheck:
 	cd apps/frontend && bun run typecheck
 
 test:
-	cd apps/backend && bun test
-	cd apps/frontend && bun test
+	cd apps/backend && bun run test
+	cd apps/frontend && bun run test
 
 docker-up:
 	docker compose up --build

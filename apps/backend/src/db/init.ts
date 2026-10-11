@@ -1,6 +1,7 @@
 import type { Client } from "@libsql/client"
 
-const statements = [
+export const statements = [
+  "CREATE TABLE IF NOT EXISTS auth_rate_limits (key TEXT PRIMARY KEY NOT NULL, count INTEGER NOT NULL, expires_at INTEGER NOT NULL);",
   "PRAGMA foreign_keys = ON;",
   "PRAGMA journal_mode = WAL;",
   `CREATE TABLE IF NOT EXISTS users (
@@ -100,10 +101,28 @@ const statements = [
 ]
 
 export async function initializeDatabase(client: Client) {
-  for (const statement of statements) {
+  for (const statement of [...statements, `CREATE TABLE IF NOT EXISTS sessions (
+ id TEXT PRIMARY KEY NOT NULL,
+ user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+ access_hash TEXT NOT NULL UNIQUE,
+ refresh_hash TEXT NOT NULL UNIQUE,
+ expires_at INTEGER NOT NULL,
+ refresh_expires_at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS sessions_user_idx ON sessions(user_id);
+`]) {
     await client.execute(statement)
   }
 
+  await client.execute(`CREATE TABLE IF NOT EXISTS auth_enrollments (
+ id TEXT PRIMARY KEY NOT NULL, email TEXT NOT NULL, display_name TEXT NOT NULL,
+ user_id TEXT NOT NULL, challenge TEXT NOT NULL, webauthn_user_id TEXT NOT NULL, expires_at INTEGER NOT NULL, recovery_hash TEXT
+);`)
+  await client.execute(`CREATE TABLE IF NOT EXISTS recovery_codes (
+ hash TEXT PRIMARY KEY NOT NULL, user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE, expires_at INTEGER
+);`)
+  await client.execute("CREATE INDEX IF NOT EXISTS recovery_codes_user_idx ON recovery_codes(user_id)")
+  await client.execute("CREATE INDEX IF NOT EXISTS auth_enrollments_expiry_idx ON auth_enrollments(expires_at)")
   await ensureColumn(client, "habits", "source_type", "TEXT NOT NULL DEFAULT 'manual'")
   await ensureColumn(client, "habits", "package_id", "TEXT")
   await ensureColumn(client, "habits", "package_item_id", "TEXT")
