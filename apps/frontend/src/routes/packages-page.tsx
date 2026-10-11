@@ -4,6 +4,9 @@ import { EmptyState, ErrorState, LoadingState } from "@/components/page-state"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Textarea } from "@/components/ui/textarea"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -17,7 +20,35 @@ import {
 import { useAuth } from "@/features/auth/auth-context"
 import { usePackagesQuery } from "@/hooks/use-packages-query"
 import { getPackagePrimaryAction } from "@/lib/package-state"
-import type { InstalledPackageSummary, PackageItemDefinition, RegistryPackage } from "@/lib/types"
+import type {
+  Frequency,
+  InstalledPackageSummary,
+  OwnedPackage,
+  PackageItemDefinition,
+  PackageUpsertInput,
+  RegistryPackage,
+} from "@/lib/types"
+
+const timeframeOptions: Frequency[] = ["daily", "weekly", "monthly", "quarterly", "semiannual", "yearly"]
+
+type PackageEditorItem = {
+  id: string
+  timeframe: Frequency
+  emoji: string
+  title: string
+  description: string
+  goal: string
+  section: string
+  color: string
+}
+
+type PackageEditorState = {
+  title: string
+  description: string
+  version: string
+  tags: string
+  items: PackageEditorItem[]
+}
 
 function formatInstalledDate(value: string) {
   return new Date(value).toLocaleDateString(undefined, {
@@ -25,6 +56,70 @@ function formatInstalledDate(value: string) {
     month: "short",
     day: "numeric",
   })
+}
+
+function createEditorItem(): PackageEditorItem {
+  return {
+    id: crypto.randomUUID(),
+    timeframe: "weekly",
+    emoji: "✨",
+    title: "",
+    description: "",
+    goal: "",
+    section: "OTHER",
+    color: "#E2E8F0",
+  }
+}
+
+function createEmptyDraft(): PackageEditorState {
+  return {
+    title: "",
+    description: "",
+    version: "1.0.0",
+    tags: "",
+    items: [createEditorItem()],
+  }
+}
+
+function createDraftFromPackage(pkg: OwnedPackage): PackageEditorState {
+  return {
+    title: pkg.title,
+    description: pkg.description,
+    version: pkg.version,
+    tags: pkg.tags.join(", "),
+    items: pkg.items.map((item) => ({
+      id: item.id,
+      timeframe: item.timeframe,
+      emoji: item.emoji ?? "✨",
+      title: item.title,
+      description: item.description,
+      goal: item.goal == null ? "" : String(item.goal),
+      section: item.section,
+      color: item.color ?? "#E2E8F0",
+    })),
+  }
+}
+
+function toPackagePayload(editor: PackageEditorState): PackageUpsertInput {
+  return {
+    title: editor.title.trim(),
+    description: editor.description.trim(),
+    version: editor.version.trim(),
+    tags: editor.tags
+      .split(",")
+      .map((tag) => tag.trim())
+      .filter(Boolean),
+    items: editor.items.map((item) => ({
+      id: item.id,
+      timeframe: item.timeframe,
+      emoji: item.emoji.trim() || "✨",
+      title: item.title.trim(),
+      description: item.description.trim(),
+      goal: item.goal.trim() === "" ? null : Number(item.goal),
+      section: item.section.trim() || "OTHER",
+      color: item.color.trim() || "#E2E8F0",
+    })),
+  }
 }
 
 function PackageItemPreview({ item }: { item: PackageItemDefinition }) {
@@ -90,9 +185,8 @@ function RegistryCard({
       <CardContent className="space-y-4">
         {item.installation ? (
           <div className="rounded-2xl border border-slate-200 bg-slate-50/70 px-4 py-3 text-sm text-slate-600">
-            Installed {formatInstalledDate(item.installation.installedAt)}.
-            {" "}
-            Tracking {item.installation.habitCount} rituals/upkeep items from this package.
+            Installed {formatInstalledDate(item.installation.installedAt)}. Tracking {item.installation.habitCount} rituals/upkeep
+            items from this package.
           </div>
         ) : null}
 
@@ -103,11 +197,7 @@ function RegistryCard({
         </ul>
 
         <div className="flex flex-wrap gap-3">
-          <Button
-            type="button"
-            disabled={isBusy || primaryAction === "installed"}
-            onClick={() => void onPrimaryAction(item)}
-          >
+          <Button type="button" disabled={isBusy || primaryAction === "installed"} onClick={() => void onPrimaryAction(item)}>
             {isBusy ? "Working..." : primaryAction === "install" ? "Install package" : primaryAction === "update" ? "Update package" : "Installed"}
           </Button>
           {item.installation ? (
@@ -133,17 +223,57 @@ function RegistryCard({
   )
 }
 
+function OwnedPackageCard({
+  item,
+  isActive,
+  onEdit,
+}: {
+  item: OwnedPackage
+  isActive: boolean
+  onEdit: (item: OwnedPackage) => void
+}) {
+  return (
+    <div className={`rounded-2xl border p-4 ${isActive ? "border-sky-400 bg-sky-50/70" : "border-slate-200 bg-slate-50/70"}`}>
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <p className="text-lg font-semibold text-slate-950">{item.title}</p>
+          <p className="mt-1 text-sm text-slate-600">{item.description || "No description yet."}</p>
+        </div>
+        <Badge variant="outline">{item.version}</Badge>
+      </div>
+      <div className="mt-4 flex flex-wrap gap-2 text-sm text-slate-600">
+        <span>{item.itemCount} items</span>
+        <span>·</span>
+        <span>Updated {formatInstalledDate(item.updatedAt)}</span>
+      </div>
+      <div className="mt-4 flex flex-wrap gap-2">
+        {item.tags.map((tag) => (
+          <Badge key={tag} variant="outline" className="border-slate-200 bg-white text-slate-700">
+            {tag}
+          </Badge>
+        ))}
+      </div>
+      <div className="mt-4">
+        <Button type="button" variant={isActive ? "secondary" : "outline"} onClick={() => onEdit(item)}>
+          {isActive ? "Editing" : "Edit package"}
+        </Button>
+      </div>
+    </div>
+  )
+}
+
 export function PackagesPage() {
   const { api } = useAuth()
-  const { registryMeta, registry, installed, isLoading, error, refetch } = usePackagesQuery()
+  const { registryMeta, registry, owned, installed, isLoading, error, refetch } = usePackagesQuery()
   const [activeActionKey, setActiveActionKey] = useState<string | null>(null)
   const [packagePendingRemoval, setPackagePendingRemoval] = useState<InstalledPackageSummary | null>(null)
+  const [editingPackageId, setEditingPackageId] = useState<string | null>(null)
+  const [editor, setEditor] = useState<PackageEditorState>(() => createEmptyDraft())
 
-  const sortedRegistry = useMemo(
-    () => [...registry].sort((a, b) => a.title.localeCompare(b.title)),
-    [registry],
-  )
+  const sortedRegistry = useMemo(() => [...registry].sort((a, b) => a.title.localeCompare(b.title)), [registry])
+  const sortedOwned = useMemo(() => [...owned].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)), [owned])
   const sortedInstalled = useMemo(() => [...installed].sort((a, b) => a.title.localeCompare(b.title)), [installed])
+  const editingPackage = sortedOwned.find((item) => item.id === editingPackageId) ?? null
 
   const runAction = async (actionKey: string, execute: () => Promise<unknown>, successMessage: string) => {
     setActiveActionKey(actionKey)
@@ -163,39 +293,77 @@ export function PackagesPage() {
     const primaryAction = getPackagePrimaryAction(item)
 
     if (primaryAction === "install") {
-      await runAction(
-        `install:${item.id}`,
-        () => api.installPackage(item.id),
-        `${item.title} installed.`,
-      )
+      await runAction(`install:${item.id}`, () => api.installPackage(item.id), `${item.title} installed.`)
       return
     }
 
     if (primaryAction === "update") {
-      await runAction(
-        `update:${item.id}`,
-        () => api.updatePackage(item.id),
-        `${item.title} updated.`,
-      )
+      await runAction(`update:${item.id}`, () => api.updatePackage(item.id), `${item.title} updated.`)
     }
   }
 
   const handleRemove = async (item: InstalledPackageSummary) => {
-    await runAction(
-      `remove:${item.packageId}`,
-      () => api.removePackage(item.packageId),
-      `${item.title} removed.`,
-    )
+    await runAction(`remove:${item.packageId}`, () => api.removePackage(item.packageId), `${item.title} removed.`)
     setPackagePendingRemoval(null)
+  }
+
+  const resetEditor = () => {
+    setEditingPackageId(null)
+    setEditor(createEmptyDraft())
+  }
+
+  const startEditing = (item: OwnedPackage) => {
+    setEditingPackageId(item.id)
+    setEditor(createDraftFromPackage(item))
+  }
+
+  const addItem = () => {
+    setEditor((current) => ({
+      ...current,
+      items: [...current.items, createEditorItem()],
+    }))
+  }
+
+  const updateItem = (itemId: string, field: keyof PackageEditorItem, value: string) => {
+    setEditor((current) => ({
+      ...current,
+      items: current.items.map((item) => (item.id === itemId ? { ...item, [field]: value } : item)),
+    }))
+  }
+
+  const removeItem = (itemId: string) => {
+    setEditor((current) => ({
+      ...current,
+      items: current.items.filter((item) => item.id !== itemId),
+    }))
+  }
+
+  const publishPackage = async () => {
+    const actionKey = editingPackageId ? `publish:${editingPackageId}` : "publish:new"
+    setActiveActionKey(actionKey)
+
+    try {
+      const payload = toPackagePayload(editor)
+      const saved = editingPackageId ? await api.updateOwnedPackage(editingPackageId, payload) : await api.createOwnedPackage(payload)
+      await refetch()
+      setEditingPackageId(saved.id)
+      setEditor(createDraftFromPackage(saved))
+      toast.success(editingPackageId ? "Package update published." : "Package published.")
+    } catch (actionError) {
+      const message = actionError instanceof Error ? actionError.message : "Unable to publish package."
+      toast.error(message)
+    } finally {
+      setActiveActionKey(null)
+    }
   }
 
   return (
     <main className="container mx-auto px-4 py-8">
       <div className="mb-8">
         <p className="text-sm uppercase tracking-[0.2em] text-indigo-700">Packages</p>
-        <h1 className="text-4xl font-semibold tracking-tight text-slate-950">Install rituals and upkeep bundles</h1>
-        <p className="mt-2 max-w-2xl text-sm text-slate-600">
-          Browse the Cycle registry, install curated bundles of recurring life maintenance, and keep them up to date as the package authors refine the details.
+        <h1 className="text-4xl font-semibold tracking-tight text-slate-950">Create, publish, and install life systems</h1>
+        <p className="mt-2 max-w-3xl text-sm text-slate-600">
+          Packages are public by default. There are no drafts here: saving a package publishes it immediately into the Cycle registry.
         </p>
         <p className="mt-3 text-xs uppercase tracking-[0.16em] text-slate-500">
           Registry v{registryMeta.schemaVersion}
@@ -210,9 +378,188 @@ export function PackagesPage() {
       ) : (
         <div className="space-y-6">
           <Card className="rounded-[1.25rem] bg-white/90 shadow-soft">
+            <CardHeader className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+              <div>
+                <CardTitle className="text-xl">Your packages</CardTitle>
+                <CardDescription>Create new packages or publish updates to packages you already own.</CardDescription>
+              </div>
+              <Button type="button" onClick={resetEditor}>
+                Create package
+              </Button>
+            </CardHeader>
+            <CardContent>
+              {sortedOwned.length === 0 ? (
+                <EmptyState
+                  title="No packages published yet"
+                  message="Create your first public package below. It will appear in the registry immediately after publishing."
+                />
+              ) : (
+                <div className="grid gap-4 md:grid-cols-2">
+                  {sortedOwned.map((item) => (
+                    <OwnedPackageCard key={item.id} item={item} isActive={editingPackageId === item.id} onEdit={startEditing} />
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          <Card className="rounded-[1.25rem] bg-white/90 shadow-soft">
+            <CardHeader>
+              <CardTitle className="text-xl">{editingPackage ? `Edit ${editingPackage.title}` : "Publish a new package"}</CardTitle>
+              <CardDescription>
+                {editingPackage
+                  ? "Changes are public as soon as you publish the update."
+                  : "Publishing creates a public package immediately. There is no separate draft state."}
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="grid gap-4 md:grid-cols-2">
+                <div className="space-y-2">
+                  <Label htmlFor="package-title">Title</Label>
+                  <Input
+                    id="package-title"
+                    value={editor.title}
+                    onChange={(event) => setEditor((current) => ({ ...current, title: event.target.value }))}
+                    placeholder="Deep-clean apartment"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="package-version">Version</Label>
+                  <Input
+                    id="package-version"
+                    value={editor.version}
+                    onChange={(event) => setEditor((current) => ({ ...current, version: event.target.value }))}
+                    placeholder="1.0.0"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="package-description">Description</Label>
+                <Textarea
+                  id="package-description"
+                  value={editor.description}
+                  onChange={(event) => setEditor((current) => ({ ...current, description: event.target.value }))}
+                  placeholder="What does this package help someone maintain?"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="package-tags">Tags</Label>
+                <Input
+                  id="package-tags"
+                  value={editor.tags}
+                  onChange={(event) => setEditor((current) => ({ ...current, tags: event.target.value }))}
+                  placeholder="home, cleaning, reset"
+                />
+              </div>
+
+              <div className="space-y-4">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <h2 className="text-lg font-semibold text-slate-950">Package items</h2>
+                    <p className="text-sm text-slate-600">These become the rituals or upkeep entries installed from this package.</p>
+                  </div>
+                  <Button type="button" variant="outline" onClick={addItem}>
+                    Add item
+                  </Button>
+                </div>
+
+                <div className="space-y-4">
+                  {editor.items.map((item, index) => (
+                    <div key={item.id} className="rounded-2xl border border-slate-200 bg-slate-50/70 p-4">
+                      <div className="mb-4 flex items-center justify-between gap-3">
+                        <p className="text-sm font-semibold uppercase tracking-[0.14em] text-slate-600">Item {index + 1}</p>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          disabled={editor.items.length === 1}
+                          onClick={() => removeItem(item.id)}
+                        >
+                          Remove
+                        </Button>
+                      </div>
+
+                      <div className="grid gap-4 md:grid-cols-[90px,1fr,160px]">
+                        <div className="space-y-2">
+                          <Label>Emoji</Label>
+                          <Input value={item.emoji} onChange={(event) => updateItem(item.id, "emoji", event.target.value)} />
+                        </div>
+                        <div className="space-y-2">
+                          <Label>Title</Label>
+                          <Input value={item.title} onChange={(event) => updateItem(item.id, "title", event.target.value)} />
+                        </div>
+                        <div className="space-y-2">
+                          <Label>Timeframe</Label>
+                          <select
+                            className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                            value={item.timeframe}
+                            onChange={(event) => updateItem(item.id, "timeframe", event.target.value)}
+                          >
+                            {timeframeOptions.map((option) => (
+                              <option key={option} value={option}>
+                                {option}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                      </div>
+
+                      <div className="mt-4 space-y-2">
+                        <Label>Description</Label>
+                        <Textarea value={item.description} onChange={(event) => updateItem(item.id, "description", event.target.value)} />
+                      </div>
+
+                      <div className="mt-4 grid gap-4 md:grid-cols-4">
+                        <div className="space-y-2">
+                          <Label>Goal</Label>
+                          <Input
+                            type="number"
+                            min="0"
+                            value={item.goal}
+                            onChange={(event) => updateItem(item.id, "goal", event.target.value)}
+                            placeholder="1"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label>Section</Label>
+                          <Input value={item.section} onChange={(event) => updateItem(item.id, "section", event.target.value)} />
+                        </div>
+                        <div className="space-y-2">
+                          <Label>Color</Label>
+                          <Input type="color" value={item.color} onChange={(event) => updateItem(item.id, "color", event.target.value)} />
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="flex flex-wrap gap-3">
+                <Button
+                  type="button"
+                  disabled={activeActionKey === (editingPackageId ? `publish:${editingPackageId}` : "publish:new")}
+                  onClick={() => void publishPackage()}
+                >
+                  {activeActionKey === (editingPackageId ? `publish:${editingPackageId}` : "publish:new")
+                    ? "Publishing..."
+                    : editingPackageId
+                      ? "Publish update"
+                      : "Publish package"}
+                </Button>
+                {editingPackageId ? (
+                  <Button type="button" variant="outline" onClick={resetEditor}>
+                    Start new package
+                  </Button>
+                ) : null}
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="rounded-[1.25rem] bg-white/90 shadow-soft">
             <CardHeader>
               <CardTitle className="text-xl">Registry</CardTitle>
-              <CardDescription>Install packages from the internal catalog. In the future this registry can come from a separate repo.</CardDescription>
+              <CardDescription>Install public packages from the shared catalog and keep them up to date.</CardDescription>
             </CardHeader>
             <CardContent>
               {sortedRegistry.length === 0 ? (
@@ -295,11 +642,14 @@ export function PackagesPage() {
         </div>
       )}
 
-      <AlertDialog open={Boolean(packagePendingRemoval)} onOpenChange={(open) => {
-        if (!open) {
-          setPackagePendingRemoval(null)
-        }
-      }}>
+      <AlertDialog
+        open={Boolean(packagePendingRemoval)}
+        onOpenChange={(open) => {
+          if (!open) {
+            setPackagePendingRemoval(null)
+          }
+        }}
+      >
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Remove package</AlertDialogTitle>

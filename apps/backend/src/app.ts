@@ -9,6 +9,7 @@ import { createAuthRoutes } from "./modules/auth/routes.ts"
 import { createPasskeyRoutes } from "./modules/auth/passkeys-routes.ts"
 import { createHabitRoutes } from "./modules/habits/routes.ts"
 import { createPackageRoutes } from "./modules/packages/routes.ts"
+import { seedPackageRegistry } from "./modules/packages/service.ts"
 import type { PackageRegistry } from "./modules/packages/types.ts"
 
 export type AppInstance = Awaited<ReturnType<typeof createApp>>
@@ -22,6 +23,7 @@ export async function createApp(configOverrides: Partial<AppConfig> & { packageR
 
   const { client, db } = createDatabase(config.databaseUrl)
   await initializeDatabase(client)
+  await seedPackageRegistry(db, configOverrides.packageRegistry)
 
   const app = new Elysia()
     .use(
@@ -93,7 +95,7 @@ export async function createApp(configOverrides: Partial<AppConfig> & { packageR
     .use(createAuthRoutes({ db, config }))
     .use(createPasskeyRoutes({ db, config }))
     .use(createHabitRoutes({ db, config }))
-    .use(createPackageRoutes({ db, config, packageRegistry: configOverrides.packageRegistry }))
+    .use(createPackageRoutes({ db, config }))
 
   return {
     app,

@@ -7,7 +7,9 @@ import type {
 import type {
   HabitWithLogs,
   InstalledPackageSummary,
+  OwnedPackage,
   PackageRegistryPayload,
+  PackageUpsertInput,
   PasskeySummary,
   SessionTokens,
   User,
@@ -255,6 +257,24 @@ export class ApiClient {
 
   listInstalledPackages() {
     return this.request<InstalledPackageSummary[]>("/packages/installed")
+  }
+
+  listOwnedPackages() {
+    return this.request<OwnedPackage[]>("/packages/mine")
+  }
+
+  createOwnedPackage(input: PackageUpsertInput) {
+    return this.request<OwnedPackage>("/packages", {
+      method: "POST",
+      body: JSON.stringify(input),
+    })
+  }
+
+  updateOwnedPackage(packageId: string, input: PackageUpsertInput) {
+    return this.request<OwnedPackage>(`/packages/${packageId}`, {
+      method: "PATCH",
+      body: JSON.stringify(input),
+    })
   }
 
   installPackage(packageId: string) {

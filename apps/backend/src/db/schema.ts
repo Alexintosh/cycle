@@ -124,6 +124,53 @@ export const installedPackages = sqliteTable(
   }),
 )
 
+export const packages = sqliteTable(
+  "packages",
+  {
+    id: text("id").primaryKey(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    title: text("title").notNull(),
+    description: text("description").notNull().default(""),
+    author: text("author").notNull(),
+    version: text("version").notNull(),
+    tags: text("tags").notNull().default("[]"),
+    createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
+    updatedAt: integer("updated_at", { mode: "timestamp" }).notNull(),
+  },
+  (table) => ({
+    userIndex: index("packages_user_idx").on(table.userId),
+    titleIndex: index("packages_title_idx").on(table.title),
+  }),
+)
+
+export const packageItems = sqliteTable(
+  "package_items",
+  {
+    id: text("id").primaryKey(),
+    packageId: text("package_id")
+      .notNull()
+      .references(() => packages.id, { onDelete: "cascade" }),
+    itemId: text("item_id").notNull(),
+    timeframe: text("timeframe").notNull(),
+    emoji: text("emoji").notNull().default("✨"),
+    title: text("title").notNull(),
+    description: text("description").notNull().default(""),
+    goal: integer("goal"),
+    section: text("section").notNull().default("OTHER"),
+    color: text("color").notNull().default("#E2E8F0"),
+    sortOrder: integer("sort_order").notNull().default(0),
+    createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
+    updatedAt: integer("updated_at", { mode: "timestamp" }).notNull(),
+  },
+  (table) => ({
+    packageIndex: index("package_items_package_idx").on(table.packageId),
+    packageOrderIndex: index("package_items_package_order_idx").on(table.packageId, table.sortOrder),
+    packageItemIndex: uniqueIndex("package_items_package_item_unique").on(table.packageId, table.itemId),
+  }),
+)
+
 export const habitLogs = sqliteTable(
   "habit_logs",
   {
@@ -147,5 +194,7 @@ export type HabitRecord = typeof habits.$inferSelect
 export type HabitLogRecord = typeof habitLogs.$inferSelect
 export type OtpRecord = typeof oneTimePasswords.$inferSelect
 export type InstalledPackageRecord = typeof installedPackages.$inferSelect
+export type PackageRecord = typeof packages.$inferSelect
+export type PackageItemRecord = typeof packageItems.$inferSelect
 export type PasskeyRecord = typeof passkeys.$inferSelect
 export type WebAuthnChallengeRecord = typeof webauthnChallenges.$inferSelect
