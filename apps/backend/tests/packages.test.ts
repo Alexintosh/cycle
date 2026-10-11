@@ -1,14 +1,16 @@
 import { describe, expect, it } from "bun:test"
 import { desc, eq } from "drizzle-orm"
-import { oneTimePasswords } from "../src/db/schema.ts"
+import { oneTimePasswords, packages, packageItems } from "../src/db/schema.ts"
 import { compareVersions, getVersionStatus } from "../src/modules/packages/helpers.ts"
-import { createPackageCatalog } from "../src/modules/packages/service.ts"
+import { createPackageCatalog, seedPackageRegistry } from "../src/modules/packages/service.ts"
 import type { PackageRegistry } from "../src/modules/packages/types.ts"
 import { deliveredOtps, createTestServer, jsonOf } from "./helpers.ts"
 
-async function createAuthenticatedContext(options: { databaseUrl?: string; packageRegistry?: PackageRegistry } = {}) {
+async function createAuthenticatedContext(
+  options: { databaseUrl?: string; packageRegistry?: PackageRegistry; email?: string } = {},
+) {
   const server = await createTestServer(options)
-  const email = "packages@example.com"
+  const email = options.email ?? "packages@example.com"
 
   await server.app.handle(
     new Request("http://localhost/auth/request-otp", {
@@ -45,6 +47,20 @@ async function createAuthenticatedContext(options: { databaseUrl?: string; packa
 }
 
 describe("packages", () => {
+  it("preserves recovered package ownership, edits and item IDs on normal startup", async () => {
+    const owner = await createAuthenticatedContext()
+    await seedPackageRegistry(owner.db)
+    const me = await jsonOf(await owner.app.handle(new Request("http://localhost/auth/me",{headers:{authorization:`Bearer ${owner.token}`}})))
+    const id = "cycle.house.deep-clean"
+    await owner.db.update(packages).set({userId:me.data.id,title:"Recovered custom title"}).where(eq(packages.id,id))
+    const before = await owner.db.select().from(packageItems).where(eq(packageItems.packageId,id))
+    await seedPackageRegistry(owner.db)
+    const [after] = await owner.db.select().from(packages).where(eq(packages.id,id))
+    expect(after.userId).toBe(me.data.id)
+    expect(after.title).toBe("Recovered custom title")
+    expect(await owner.db.select().from(packageItems).where(eq(packageItems.packageId,id))).toEqual(before)
+    owner.client.close()
+  })
   it("loads the registry and compares package versions", () => {
     const catalog = createPackageCatalog()
 
@@ -206,5 +222,158 @@ describe("packages", () => {
     expect(removePayload.data.deletedHabits).toBe(2)
 
     reopened.client.close()
+  })
+
+  it("creates, updates, and publishes owned packages to the public registry", async () => {
+    const emptyRegistry: PackageRegistry = {
+      schemaVersion: 1,
+      updatedAt: "2026-04-24T00:00:00.000Z",
+      packages: [],
+    }
+
+    const owner = await createAuthenticatedContext({
+      packageRegistry: emptyRegistry,
+      email: "author@example.com",
+    })
+
+    const createResponse = await owner.app.handle(
+      new Request("http://localhost/packages", {
+        method: "POST",
+        headers: {
+          authorization: `Bearer ${owner.token}`,
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          title: "Apartment Reset",
+          description: "A package for keeping an apartment fresh.",
+          version: "1.0.0",
+          tags: ["home", "cleaning"],
+          items: [
+            {
+              timeframe: "weekly",
+              emoji: "🧺",
+              title: "Reset laundry area",
+              description: "Clear lint and reorganize detergents.",
+              goal: 1,
+              section: "UPKEEP",
+              color: "#E2E8F0",
+            },
+          ],
+        }),
+      }),
+    )
+
+    expect(createResponse.status).toBe(200)
+    const createPayload = await jsonOf(createResponse)
+    expect(createPayload.data.title).toBe("Apartment Reset")
+    expect(createPayload.data.author).toBe("author")
+    expect(createPayload.data.itemCount).toBe(1)
+
+    const packageId = createPayload.data.id as string
+
+    const mineResponse = await owner.app.handle(
+      new Request("http://localhost/packages/mine", {
+        headers: {
+          authorization: `Bearer ${owner.token}`,
+        },
+      }),
+    )
+
+    expect(mineResponse.status).toBe(200)
+    const minePayload = await jsonOf(mineResponse)
+    expect(minePayload.data).toHaveLength(1)
+    expect(minePayload.data[0].id).toBe(packageId)
+
+    const registryResponse = await owner.app.handle(
+      new Request("http://localhost/packages/registry", {
+        headers: {
+          authorization: `Bearer ${owner.token}`,
+        },
+      }),
+    )
+
+    expect(registryResponse.status).toBe(200)
+    const registryPayload = await jsonOf(registryResponse)
+    expect(registryPayload.data.packages.some((pkg: { id: string }) => pkg.id === packageId)).toBe(true)
+
+    const itemId = createPayload.data.items[0].id as string
+    const updateResponse = await owner.app.handle(
+      new Request(`http://localhost/packages/${packageId}`, {
+        method: "PATCH",
+        headers: {
+          authorization: `Bearer ${owner.token}`,
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          title: "Apartment Reset",
+          description: "A package for keeping an apartment fresh.",
+          version: "1.1.0",
+          tags: ["home", "cleaning", "reset"],
+          items: [
+            {
+              id: itemId,
+              timeframe: "weekly",
+              emoji: "🧺",
+              title: "Reset laundry area",
+              description: "Clear lint, reorganize detergents, and wipe shelves.",
+              goal: 1,
+              section: "UPKEEP",
+              color: "#E2E8F0",
+            },
+            {
+              timeframe: "monthly",
+              emoji: "🧽",
+              title: "Wipe cabinet fronts",
+              description: "Remove cooking residue from kitchen cabinets.",
+              goal: 1,
+              section: "UPKEEP",
+              color: "#E2E8F0",
+            },
+          ],
+        }),
+      }),
+    )
+
+    expect(updateResponse.status).toBe(200)
+    const updatePayload = await jsonOf(updateResponse)
+    expect(updatePayload.data.version).toBe("1.1.0")
+    expect(updatePayload.data.itemCount).toBe(2)
+
+    const visitor = await createAuthenticatedContext({
+      databaseUrl: owner.config.databaseUrl,
+      packageRegistry: emptyRegistry,
+      email: "visitor@example.com",
+    })
+
+    const publicRegistryResponse = await visitor.app.handle(
+      new Request("http://localhost/packages/registry", {
+        headers: {
+          authorization: `Bearer ${visitor.token}`,
+        },
+      }),
+    )
+
+    expect(publicRegistryResponse.status).toBe(200)
+    const publicRegistryPayload = await jsonOf(publicRegistryResponse)
+    const publicPackage = publicRegistryPayload.data.packages.find((pkg: { id: string }) => pkg.id === packageId)
+    expect(publicPackage?.version).toBe("1.1.0")
+    expect(publicPackage?.itemCount).toBe(2)
+
+    const installResponse = await visitor.app.handle(
+      new Request(`http://localhost/packages/${packageId}/install`, {
+        method: "POST",
+        headers: {
+          authorization: `Bearer ${visitor.token}`,
+        },
+      }),
+    )
+
+    expect(installResponse.status).toBe(200)
+    const installPayload = await jsonOf(installResponse)
+    expect(installPayload.data.installation.installedVersion).toBe("1.1.0")
+    expect(installPayload.data.addedHabits).toBe(2)
+
+    visitor.client.close()
+    owner.client.close()
   })
 })

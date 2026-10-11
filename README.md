@@ -89,6 +89,8 @@ Follow [the migration and deployment guide](docs/cloudflare.md) to back up the a
 
 Cycle can be installed as a PWA on iOS and other supported browsers. Saved rituals and history can be viewed offline; check-ins queue locally and sync when the app reconnects. See [installation and offline behavior](docs/pwa.md) for setup, recovery of pending changes, and icon generation details.
 
+Packages can be created and published from the Packages page, edited by their owner, and installed independently by each account. See [the development server recovery guide](docs/server-recovery.md) for the recovered catalog and an additive import into an existing D1 account.
+
 ## Passkeys
 
 Create an account with an email identifier and a passkey, then save the recovery codes. Sign in using your passkey. Settings lets you add a second passkey and replace recovery codes. Recovery replaces previous passkeys and sessions. No passwords or email sending are required.

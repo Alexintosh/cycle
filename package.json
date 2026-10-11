@@ -12,6 +12,6 @@
     "dev:cloudflare": "cd apps/frontend && bun run build && cd ../backend && bun run dev:cloudflare",
     "db:backup": "python3 scripts/prepare-d1.py apps/backend/data/habit-tracker.db",
     "deploy:cloudflare": "bun run verify:cloudflare && cd apps/backend && bun run deploy",
-    "test:data-migration": "python3 scripts/test_prepare_d1.py"
+    "test:data-migration": "python3 scripts/test_prepare_d1.py && python3 scripts/test_recover_server_data.py"
   }
 }

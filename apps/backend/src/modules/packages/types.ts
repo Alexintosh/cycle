@@ -23,6 +23,23 @@ export type PackageDefinition = {
   items: PackageItemDefinition[]
 }
 
+export type PackageUpsertInput = {
+  title: string
+  description?: string
+  version: string
+  tags?: string[]
+  items: Array<{
+    id?: string
+    timeframe: string
+    emoji?: string
+    title: string
+    description?: string
+    goal?: number | null
+    section?: string
+    color?: string
+  }>
+}
+
 export type PackageRegistry = {
   schemaVersion: number
   updatedAt: string
@@ -43,4 +60,10 @@ export type RegistryPackageSummary = PackageDefinition & {
   installation: PackageInstallationSummary | null
   versionStatus: PackageVersionStatus
   hasUpdate: boolean
+}
+
+export type OwnedPackageSummary = PackageDefinition & {
+  itemCount: number
+  createdAt: Date
+  updatedAt: Date
 }
