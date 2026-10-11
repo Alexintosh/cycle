@@ -1,0 +1,92 @@
+{
+  "title": "Healthy Relationships — Keep the Spark",
+  "description": "Recurring rituals for couples to nurture affection, shared time, and intimacy. Frequencies are editable starting points, not Gottman prescriptions. Inspired by the Gottman Institute: https://www.gottman.com/blog/5-rituals-reconnect-relationship/",
+  "version": "1.0.0",
+  "tags": [
+    "relationships",
+    "couples",
+    "connection"
+  ],
+  "items": [
+    {
+      "id": "healthy-relationships.love",
+      "emoji": "❤️",
+      "title": "I love you",
+      "timeframe": "daily",
+      "goal": 1,
+      "section": "RELATIONSHIPS",
+      "color": "#FBCFE8",
+      "description": "Express affection sincerely with words, a message, or a personal gesture. Choose something that feels natural to you both. Learn more — Gottman Institute: https://www.gottman.com/blog/5-rituals-reconnect-relationship/"
+    },
+    {
+      "id": "healthy-relationships.appreciation",
+      "emoji": "🙏",
+      "title": "Appreciation",
+      "timeframe": "daily",
+      "goal": 1,
+      "section": "RELATIONSHIPS",
+      "color": "#FBCFE8",
+      "description": "Thank your partner for one specific thing you appreciated. Name the action and what it meant to you. Learn more — Gottman Institute: https://www.gottman.com/blog/rituals-of-gratitude/"
+    },
+    {
+      "id": "healthy-relationships.check-in",
+      "emoji": "💬",
+      "title": "Check-in",
+      "timeframe": "weekly",
+      "goal": 3,
+      "section": "RELATIONSHIPS",
+      "color": "#FBCFE8",
+      "description": "Spend 10–15 minutes sharing how your day has felt, with phones put away. Take turns listening; ask whether your partner wants support or help with solutions. Learn more — Gottman Institute: https://www.gottman.com/blog/5-rituals-reconnect-relationship/"
+    },
+    {
+      "id": "healthy-relationships.date-night",
+      "emoji": "🥂",
+      "title": "Date night",
+      "timeframe": "weekly",
+      "goal": 1,
+      "section": "RELATIONSHIPS",
+      "color": "#FBCFE8",
+      "description": "Protect time just for the two of you: dinner, a walk, or a date at home. Take turns planning something you both enjoy. Learn more — Gottman Institute: https://www.gottman.com/blog/5-rituals-reconnect-relationship/"
+    },
+    {
+      "id": "healthy-relationships.sexy-time",
+      "emoji": "🔥",
+      "title": "Sexy time",
+      "timeframe": "weekly",
+      "goal": null,
+      "section": "RELATIONSHIPS",
+      "color": "#FBCFE8",
+      "description": "Make room for intimacy you both want. Share preferences and respect each other’s boundaries; affection does not need to lead to sex. Track freely, without a numerical target. Learn more — Gottman Institute: https://info.gottman.com/blog/increase-intimacy-in-your-relationship-with-10-proven-techniques"
+    },
+    {
+      "id": "healthy-relationships.flowers",
+      "emoji": "💐",
+      "title": "Flowers",
+      "timeframe": "monthly",
+      "goal": 1,
+      "section": "RELATIONSHIPS",
+      "color": "#FBCFE8",
+      "description": "Bring flowers, write a note, or offer a small surprise chosen around your partner’s tastes. A thoughtful gesture can be free. Learn more — Gottman Institute: https://www.gottman.com/blog/rituals-of-gratitude/"
+    },
+    {
+      "id": "healthy-relationships.us-review",
+      "emoji": "🧭",
+      "title": "Us review",
+      "timeframe": "monthly",
+      "goal": 1,
+      "section": "RELATIONSHIPS",
+      "color": "#FBCFE8",
+      "description": "Share what has felt good in your relationship and one thing you would like to improve together. Agree on one small, practical change. Learn more — Gottman Institute: https://www.gottman.com/blog/5-rituals-reconnect-relationship/"
+    },
+    {
+      "id": "healthy-relationships.something-new",
+      "emoji": "✨",
+      "title": "Something new",
+      "timeframe": "monthly",
+      "goal": 1,
+      "section": "RELATIONSHIPS",
+      "color": "#FBCFE8",
+      "description": "Choose a new activity, place, or experience together. Keep it manageable and focused on enjoying each other’s company. Learn more — Gottman Institute: https://www.gottman.com/blog/5-rituals-reconnect-relationship/"
+    }
+  ]
+}
