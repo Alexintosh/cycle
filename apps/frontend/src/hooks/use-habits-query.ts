@@ -46,6 +46,12 @@ export function useHabitsQuery(factory: QueryFactory, deps: unknown[]) {
     void refetch()
   }, [refetch, ...deps])
 
+  useEffect(() => {
+    const synced = () => { void refetch() }
+    window.addEventListener("cycle:data-synced", synced)
+    return () => window.removeEventListener("cycle:data-synced", synced)
+  }, [refetch])
+
   return {
     habits,
     isLoading,

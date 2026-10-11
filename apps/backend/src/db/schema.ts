@@ -1,4 +1,4 @@
-import { index, integer, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core"
+import { index, integer, primaryKey, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core"
 
 export const users = sqliteTable(
   "users",
@@ -180,3 +180,10 @@ export const recoveryCodes = sqliteTable("recovery_codes", {
   userId: text("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
   expiresAt: integer("expires_at", { mode: "timestamp" }),
 })
+
+export const offlineMutations = sqliteTable("offline_mutations", {
+  userId: text("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  id: text("id").notNull(),
+  requestHash: text("request_hash").notNull(),
+  createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
+}, table => [primaryKey({ columns: [table.userId, table.id] })])

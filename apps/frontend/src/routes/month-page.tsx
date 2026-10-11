@@ -47,6 +47,12 @@ export function MonthPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cursor])
 
+  useEffect(() => {
+    const synced = () => { void load(cursor) }
+    window.addEventListener("cycle:data-synced", synced)
+    return () => window.removeEventListener("cycle:data-synced", synced)
+  }, [api, cursor])
+
   const handleToggleToday = async (habit: HabitWithLogs) => {
     const todayIso = toLocalIsoDate(new Date())
     const isCompleted = habit.logs.some((log) => log.date === todayIso && log.completed)

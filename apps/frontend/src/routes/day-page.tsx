@@ -91,6 +91,12 @@ export function DayPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
+  useEffect(() => {
+    const synced = () => { void load() }
+    window.addEventListener("cycle:data-synced", synced)
+    return () => window.removeEventListener("cycle:data-synced", synced)
+  }, [api])
+
   const handleToggle = async (habit: HabitWithLogs) => {
     const isCompleted = habit.logs.some((log) => log.date === todayIso && log.completed)
     await api.setDayStatus(habit.id, todayIso, !isCompleted)

@@ -64,6 +64,12 @@ export function usePackagesQuery(): UsePackagesQueryResult {
     void refetch()
   }, [refetch])
 
+  useEffect(() => {
+    const synced = () => { void refetch() }
+    window.addEventListener("cycle:data-synced", synced)
+    return () => window.removeEventListener("cycle:data-synced", synced)
+  }, [refetch])
+
   return {
     registryMeta,
     registry,

@@ -1,3 +1,4 @@
+import { cacheRead, cacheHabits, cachedResponse, readOffline, projectHabits, enqueueCheckIn, acknowledgeCheckIn, type CheckIn } from "@/offline/store"
 import type {
   AuthenticationResponseJSON,
   PublicKeyCredentialCreationOptionsJSON,
@@ -44,6 +45,7 @@ type ApiResponse<T> = SuccessResponse<T> | ErrorResponse
 
 type TokenSource = {
   getTokens: () => SessionTokens | null
+  getUserId?: () => string | undefined
   setTokens: (tokens: SessionTokens | null) => void
 }
 
@@ -55,7 +57,7 @@ type BackendHabitLog = {
   note: string | null
 }
 
-type BackendHabit = {
+export type BackendHabit = {
   id: string
   name: string
   description: string
@@ -105,6 +107,7 @@ function mapHabit(habit: BackendHabit): HabitWithLogs {
 export class ApiClient {
   private tokenSource?: TokenSource
   private refreshInFlight?: Promise<SessionTokens>
+  private syncInFlight?: Promise<void>
 
   constructor(tokenSource?: TokenSource) {
     this.tokenSource = tokenSource
@@ -121,10 +124,28 @@ export class ApiClient {
       headers.set("Authorization", `Bearer ${tokens.token}`)
     }
 
-    const response = await fetch(`${API_BASE_URL}${path}`, {
-      ...init,
-      headers,
-    })
+    const scope = this.tokenSource?.getUserId?.()
+    const method = init.method ?? "GET"
+    if (method !== "GET" && /^\/(habits|packages|data)(?:\/|$)/.test(path) && path !== "/habits/sync" && scope) {
+      if (!navigator.onLine) throw new ApiError("OFFLINE_UNAVAILABLE", "Connect to the internet to manage rituals, packages or imports. Check-ins remain available offline.")
+      if ((await readOffline(scope)).pending.length) throw new ApiError("SYNC_PENDING", "Sync your pending check-ins before changing rituals or packages.")
+    }
+    if (!navigator.onLine && method === "GET" && scope && tokens) {
+      const cached = await cachedResponse(scope, path)
+      if (cached !== undefined) return cached as T
+      throw new ApiError("OFFLINE_UNAVAILABLE", "This data is not saved on this device yet. Connect once to load it.")
+    }
+    let response: Response
+    try {
+      response = await fetch(`${API_BASE_URL}${path}`, { ...init, headers })
+    } catch (error) {
+      if (error instanceof TypeError && method === "GET" && scope && tokens) {
+        const cached = await cachedResponse(scope, path)
+        if (cached !== undefined) return cached as T
+        throw new ApiError("OFFLINE_UNAVAILABLE", "This data is not saved on this device yet. Connect once to load it.")
+      }
+      throw error
+    }
 
     const payload = (await response.json()) as ApiResponse<T>
 
@@ -144,7 +165,62 @@ export class ApiClient {
       )
     }
 
+    if (method === "GET" && !path.startsWith("/habits") && scope && this.tokenSource?.getUserId?.() === scope) {
+      // Account data lives in IndexedDB, never in shared Service Worker caches.
+      await cacheRead(scope, path, payload.data).catch(() => undefined)
+    }
+    if (method !== "GET" && scope && /^\/(habits|packages|data)(?:\/|$)/.test(path) && path !== "/habits/sync") {
+      await this.prepareOffline().catch(() => undefined)
+    }
     return payload.data
+  }
+
+  async prepareOffline() {
+    const scope = this.tokenSource?.getUserId?.()
+    if (!scope || !this.tokenSource?.getTokens() || !navigator.onLine) return
+    const habits = await this.request<BackendHabit[]>("/habits?includeLogs=true")
+    if (this.tokenSource.getUserId?.() === scope) await cacheHabits(scope, habits)
+  }
+
+  syncOffline() {
+    if (this.syncInFlight) return this.syncInFlight
+    const scope = this.tokenSource?.getUserId?.()
+    if (!scope || !navigator.onLine) return Promise.resolve()
+    const synchronize = async () => {
+      let changed = false
+      while (this.tokenSource?.getUserId?.() === scope && this.tokenSource.getTokens()) {
+        const [command] = (await readOffline(scope)).pending
+        if (!command) break
+        await this.request("/habits/sync", { method: "POST", body: JSON.stringify(command) })
+        if (this.tokenSource?.getUserId?.() !== scope) break
+        await acknowledgeCheckIn(scope, command.id)
+        changed = true
+      }
+      if (changed && this.tokenSource?.getUserId?.() === scope) {
+        await this.prepareOffline()
+        window.dispatchEvent(new Event("cycle:data-synced"))
+      }
+    }
+    // Keep command order when several tabs share this account's queue.
+    this.syncInFlight = (async () => {
+      if (navigator.locks) await navigator.locks.request(`cycle-sync-${scope}`, synchronize)
+      else await synchronize()
+    })().finally(() => { this.syncInFlight = undefined })
+    return this.syncInFlight
+  }
+
+  private async checkIn(command: CheckIn) {
+    const scope = this.tokenSource?.getUserId?.()
+    if (!scope || !this.tokenSource?.getTokens()) throw new ApiError("UNAUTHORIZED", "Sign in to record check-ins.")
+    if (!(await readOffline(scope)).habits) {
+      try { await this.prepareOffline() } catch { throw new ApiError("OFFLINE_UNAVAILABLE", "Connect once to save your rituals on this device.") }
+    }
+    // Persist before sending. A crash or lost response is safe to replay.
+    await enqueueCheckIn(scope, command)
+    await this.syncOffline().catch(() => undefined)
+    const habit = projectHabits(await readOffline(scope), { startDate: command.date, endDate: command.date, includeLogs: true })?.find(habit => habit.id === command.habitId)
+    if (!habit) throw new ApiError("HABIT_REMOVED", "This ritual is unavailable on this device.")
+    return mapHabit(habit)
   }
 
   beginEnrollment(email: string, displayName?: string, recoveryCode?: string) {
@@ -266,11 +342,23 @@ export class ApiClient {
     }
 
     const query = searchParams.size ? `?${searchParams.toString()}` : ""
-    return this.request<BackendHabit[]>(`/habits${query}`).then((habits) => habits.map(mapHabit))
+    return this.readHabits(`/habits${query}`)
+  }
+
+  private async readHabits(path: string) {
+    const scope = this.tokenSource?.getUserId?.()
+    if (scope && this.tokenSource?.getTokens()) {
+      const state = await readOffline(scope)
+      if (!navigator.onLine || state.pending.length) {
+        const cached = await cachedResponse(scope, path) as BackendHabit[] | undefined
+        if (cached) return cached.map(mapHabit)
+      }
+    }
+    return this.request<BackendHabit[]>(path).then(habits => habits.map(mapHabit))
   }
 
   getCompletedNonDaily(date: string) {
-    return this.request<BackendHabit[]>(`/habits/completed-non-daily?date=${date}`).then((habits) => habits.map(mapHabit))
+    return this.readHabits(`/habits/completed-non-daily?date=${date}`)
   }
 
   listPackageRegistry() {
@@ -361,17 +449,11 @@ export class ApiClient {
   }
 
   setDayStatus(habitId: string, date: string, completed: boolean) {
-    return this.request<BackendHabit>(`/habits/${habitId}/day-status`, {
-      method: "PUT",
-      body: JSON.stringify({ date, completed }),
-    }).then(mapHabit)
+    return this.checkIn({ id: crypto.randomUUID(), habitId, kind: "set-day", date, completed, loggedAt: new Date().toISOString() })
   }
 
   addLog(habitId: string, date: string, count = 1) {
-    return this.request<BackendHabit>(`/habits/${habitId}/logs`, {
-      method: "POST",
-      body: JSON.stringify({ date, count }),
-    }).then(mapHabit)
+    return this.checkIn({ id: crypto.randomUUID(), habitId, kind: "add-log", date, count, loggedAt: new Date().toISOString() })
   }
 
   exportData() {

@@ -1,3 +1,4 @@
+import { PwaStatus } from "@/components/pwa-status"
 import { Outlet } from "react-router-dom"
 import { Toaster } from "sonner"
 import { AuthProvider } from "@/features/auth/auth-context"
@@ -7,6 +8,7 @@ export function AppProviders() {
   return (
     <AuthProvider>
       <DateProvider>
+        <PwaStatus />
         <Outlet />
         <Toaster richColors position="top-right" />
       </DateProvider>

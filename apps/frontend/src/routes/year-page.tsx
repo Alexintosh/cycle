@@ -48,6 +48,12 @@ export function YearPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [year])
 
+  useEffect(() => {
+    const synced = () => { void load(year) }
+    window.addEventListener("cycle:data-synced", synced)
+    return () => window.removeEventListener("cycle:data-synced", synced)
+  }, [api, year])
+
   const handleLog = async (habit: HabitWithLogs) => {
     await api.addLog(habit.id, logDate, 1)
     await load(year)

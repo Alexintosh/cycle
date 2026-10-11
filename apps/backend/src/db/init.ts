@@ -123,6 +123,10 @@ CREATE INDEX IF NOT EXISTS sessions_user_idx ON sessions(user_id);
 );`)
   await client.execute("CREATE INDEX IF NOT EXISTS recovery_codes_user_idx ON recovery_codes(user_id)")
   await client.execute("CREATE INDEX IF NOT EXISTS auth_enrollments_expiry_idx ON auth_enrollments(expires_at)")
+  await client.execute(`CREATE TABLE IF NOT EXISTS offline_mutations (
+ user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE, id TEXT NOT NULL,
+ request_hash TEXT NOT NULL, created_at INTEGER NOT NULL, PRIMARY KEY(user_id,id)
+);`)
   await ensureColumn(client, "habits", "source_type", "TEXT NOT NULL DEFAULT 'manual'")
   await ensureColumn(client, "habits", "package_id", "TEXT")
   await ensureColumn(client, "habits", "package_item_id", "TEXT")

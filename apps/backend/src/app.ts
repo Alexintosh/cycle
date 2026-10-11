@@ -7,6 +7,7 @@ import { createSessionTokens } from "./modules/auth/sessions.ts"
 import { createEnrollmentRoutes } from "./modules/auth/enrollment-routes.ts"
 import { createAuthRoutes } from "./modules/auth/routes.ts"
 import { createPasskeyRoutes } from "./modules/auth/passkeys-routes.ts"
+import { createOfflineRoutes } from "./modules/habits/offline-routes.ts"
 import { createHabitRoutes } from "./modules/habits/routes.ts"
 import { createPackageRoutes } from "./modules/packages/routes.ts"
 import type { PackageRegistry } from "./modules/packages/types.ts"
@@ -91,6 +92,7 @@ export function createRuntime(db: AppDatabase, config: AppConfig, options: {
     .use(createAuthRoutes({ db, config, sendOtp: options.sendOtp }))
     .use(createEnrollmentRoutes({ db, config }))
     .use(createPasskeyRoutes({ db, config }))
+    .use(createOfflineRoutes({ db, config }))
     .use(createHabitRoutes({ db, config }))
     .use(createPackageRoutes({ db, config, packageRegistry: options.packageRegistry }))
 

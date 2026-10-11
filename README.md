@@ -87,6 +87,8 @@ bun run db:backup
 
 Follow [the migration and deployment guide](docs/cloudflare.md) to back up the authoritative SQLite database, validate the export, import it into a fresh D1 database and deploy. The backup command does not touch the source database or remote Cloudflare resources. The default deployment requires no email service or paid email subscription. Migrated accounts without a passkey use an operator-issued setup code; see the guide.
 
+Cycle can be installed as a PWA on iOS and other supported browsers. Saved rituals and history can be viewed offline; check-ins queue locally and sync when the app reconnects. See [installation and offline behavior](docs/pwa.md) for setup, recovery of pending changes, and icon generation details.
+
 ## Passkeys
 
 Create an account with an email identifier and a passkey, then save the recovery codes. Sign in using your passkey. Settings lets you add a second passkey and replace recovery codes. Recovery replaces previous passkeys and sessions. No passwords or email sending are required.

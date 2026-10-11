@@ -26,7 +26,7 @@ export function AppShell() {
   }
 
   return (
-    <div className="min-h-screen bg-[radial-gradient(circle_at_top,_rgba(59,130,246,0.16),_transparent_42%),linear-gradient(180deg,_rgba(248,250,252,0.98),_rgba(255,255,255,1))]">
+    <div className="relative min-h-screen bg-[radial-gradient(circle_at_top,_rgba(59,130,246,0.16),_transparent_42%),linear-gradient(180deg,_rgba(248,250,252,0.98),_rgba(255,255,255,1))]">
       <NavMenu />
       {isBypassAuth ? null : (
         <div className="absolute right-4 top-3 z-20 md:right-8">
