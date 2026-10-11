@@ -48,6 +48,7 @@ type ApiResponse<T> = SuccessResponse<T> | ErrorResponse
 type TokenSource = {
   getTokens: () => SessionTokens | null
   getUserId?: () => string | undefined
+  getAuthMode?: () => "standard" | "bypass" | undefined
   setTokens: (tokens: SessionTokens | null) => void
 }
 
@@ -469,10 +470,18 @@ export class ApiClient {
   }
 
   setDayStatus(habitId: string, date: string, completed: boolean) {
+    if (this.tokenSource?.getAuthMode?.() === "bypass") {
+      if (!navigator.onLine) return Promise.reject(new ApiError("OFFLINE_UNAVAILABLE", "Development mode requires a connection for check-ins."))
+      return this.request<BackendHabit>(`/habits/${habitId}/day-status`, {method:"PUT",body:JSON.stringify({date,completed})}).then(mapHabit)
+    }
     return this.checkIn({ id: crypto.randomUUID(), habitId, kind: "set-day", date, completed, loggedAt: new Date().toISOString() })
   }
 
   addLog(habitId: string, date: string, count = 1) {
+    if (this.tokenSource?.getAuthMode?.() === "bypass") {
+      if (!navigator.onLine) return Promise.reject(new ApiError("OFFLINE_UNAVAILABLE", "Development mode requires a connection for check-ins."))
+      return this.request<BackendHabit>(`/habits/${habitId}/logs`, {method:"POST",body:JSON.stringify({date,count})}).then(mapHabit)
+    }
     return this.checkIn({ id: crypto.randomUUID(), habitId, kind: "add-log", date, count, loggedAt: new Date().toISOString() })
   }
 

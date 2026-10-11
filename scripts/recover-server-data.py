@@ -73,18 +73,21 @@ def prepare(source_path, target_dump, email, destination):
             insert("package_items", row)
 
         candidates = records(target, "habits")
+        used_habit_ids = set()
         for row in records(source, "habits"):
             source_id = row['id']
-            matches = [candidate for candidate in candidates if candidate['user_id'] == owner and all(candidate[field] == row[field] for field in HABIT_FIELDS)]
+            matches = [candidate for candidate in candidates if candidate['user_id'] == owner and candidate['id'] not in used_habit_ids and all(candidate[field] == row[field] for field in HABIT_FIELDS)]
             if len(matches) > 1:
                 raise ValueError("Ambiguous duplicate ritual; review before importing")
             if matches:
                 mapping[source_id] = matches[0]['id']
+                used_habit_ids.add(matches[0]['id'])
                 reused['habits'] += 1
                 continue
             row['id'] = available_id("habits", source_id)
             row['user_id'] = owner
             mapping[source_id] = row['id']
+            used_habit_ids.add(row['id'])
             insert("habits", row)
             candidates.append(row)
 

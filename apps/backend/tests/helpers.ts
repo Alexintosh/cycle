@@ -74,6 +74,7 @@ export async function createTestServer(
   return createApp({
     sendOtp: async (_config, email, code) => { deliveredOtps.set(email, code) },
     env: "test",
+    frontendUrl: "http://localhost:3100",
     emailAuthEnabled: true,
     databaseUrl,
     jwtSecret: "test-secret",

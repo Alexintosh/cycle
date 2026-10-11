@@ -94,6 +94,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
   const api = useMemo(() => new ApiClient({
     getTokens: () => tokensRef.current,
+    getAuthMode: () => userRef.current?.authMode,
     getUserId: () => tokensRef.current ? (userRef.current ?? storedProfile())?.id : undefined,
     setTokens: next => { tokensRef.current = next; setTokens(next) },
   }), [])

@@ -88,4 +88,12 @@ class RecoveryTests(unittest.TestCase):
             recovery.prepare(empty,self.backup,'owner@example.com',self.root/'incomplete')
         self.assertFalse((self.root/'incomplete/recovery.sql').exists())
 
+    def test_distinct_source_rituals_are_not_silently_collapsed(self):
+        source = sqlite3.connect(self.source_path)
+        habit(source,'second-read','legacy','Read')
+        source.commit(); source.close()
+        result = recovery.prepare(self.source_path,self.backup,'owner@example.com',self.root/'distinct')
+        self.assertNotEqual(result['habitIdMapping']['old-manual'],result['habitIdMapping']['second-read'])
+        self.assertEqual(result['inserted']['habits'],2)
+
 if __name__ == '__main__': unittest.main()
