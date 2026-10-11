@@ -341,7 +341,7 @@ export function WeeklyHabitList({
             <section
               key={category}
               className={cn(
-                "overflow-hidden rounded-2xl border bg-white shadow-sm",
+                "overflow-hidden rounded-2xl border bg-white dark:bg-slate-900 shadow-sm",
                 activeCategory && activeCategory !== category && "opacity-50",
               )}
             >

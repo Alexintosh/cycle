@@ -58,11 +58,11 @@ export function PwaStatus() {
     const link = document.createElement("a"); link.href = url; link.download = "cycle-pending-checkins.json"; link.click(); URL.revokeObjectURL(url)
   }
   if (online && !pending && !error && !updateAvailable && !install && !(ios && !standalone) && !(offlineReady && saved)) return null
-  return <aside aria-label="App and sync status" className="border-b bg-sky-50/95 px-4 py-2 text-sm text-slate-700">
+  return <aside aria-label="App and sync status" className="border-b bg-sky-50/95 dark:bg-sky-950/95 px-4 py-2 text-sm text-slate-700 dark:text-slate-300">
     <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-x-4 gap-y-2">
       <span role="status">{!online ? saved ? "Offline — saved rituals and check-ins are available." : "Offline — connect once to prepare offline access." : syncing && pending ? "Syncing check-ins…" : pending ? `${pending} check-in${pending === 1 ? "" : "s"} waiting to sync` : saved ? "Rituals saved for offline use" : "Connect once to prepare offline access"}</span>
       {pending > 0 && <><Button size="sm" variant="outline" disabled={!online || syncing} onClick={() => window.dispatchEvent(new Event("cycle:retry-sync"))}>Sync now</Button><Button size="sm" variant="ghost" onClick={() => void exportPending()}>Export pending</Button></>}
-      {error && <span role="alert" className="text-red-700">{error}</span>}
+      {error && <span role="alert" className="text-red-700 dark:text-red-300">{error}</span>}
       {error && pending > 0 && <Button size="sm" variant="ghost" onClick={async () => {
         if (!user || !window.confirm("Discard all unsynced check-ins on this device? Export them first if you need to keep a copy.")) return
         await discardCheckIns(user.id); setError(""); window.dispatchEvent(new Event("cycle:data-synced")); window.dispatchEvent(new Event("cycle:retry-sync"))

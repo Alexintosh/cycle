@@ -21,6 +21,7 @@ interface HabitFormProps {
   habit?: Habit
   onCancel: () => void
   onSuccess?: () => Promise<void> | void
+  embedded?: boolean
 }
 
 const COLORS = [
@@ -42,7 +43,7 @@ const COMMON_EMOJIS = [
   "🎯", "🎨", "🎸", "💻", "🧹", "🌱", "⭐", "❤️"
 ]
 
-export function HabitForm({ habit, onCancel, onSuccess }: HabitFormProps) {
+export function HabitForm({ habit, onCancel, onSuccess, embedded = false }: HabitFormProps) {
   const { api } = useAuth()
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -113,12 +114,12 @@ export function HabitForm({ habit, onCancel, onSuccess }: HabitFormProps) {
   }
 
   return (
-    <Card className="w-full max-w-md mx-auto">
-      <CardHeader>
+    <Card className={embedded ? "w-full border-0 shadow-none" : "w-full max-w-md mx-auto"}>
+      {embedded ? null : <CardHeader>
         <CardTitle>{habit ? "Edit Ritual" : "Add Ritual or Upkeep"}</CardTitle>
-      </CardHeader>
+      </CardHeader>}
       <form onSubmit={handleSubmit}>
-        <CardContent className="space-y-4">
+        <CardContent className={embedded ? "space-y-4 p-0" : "space-y-4"}>
           {error ? <p className="text-sm text-red-600">{error}</p> : null}
           <div className="space-y-2">
             <Label htmlFor="name">Name</Label>
@@ -231,7 +232,7 @@ export function HabitForm({ habit, onCancel, onSuccess }: HabitFormProps) {
                 <button
                   key={emoji}
                   type="button"
-                  className={`w-10 h-10 text-xl flex items-center justify-center rounded-lg hover:bg-gray-100 ${
+                  className={`w-10 h-10 text-xl flex items-center justify-center rounded-lg hover:bg-gray-100 dark:hover:bg-slate-800 ${
                     formData.emoji === emoji ? "ring-2 ring-offset-2 ring-gray-400" : ""
                   }`}
                   onClick={() => handleEmojiChange(emoji)}
@@ -252,7 +253,7 @@ export function HabitForm({ habit, onCancel, onSuccess }: HabitFormProps) {
           </div>
         </CardContent>
 
-        <CardFooter className="flex justify-between">
+        <CardFooter className={embedded ? "flex justify-between px-0 pb-0 pt-6" : "flex justify-between"}>
           <Button type="button" variant="outline" onClick={onCancel}>
             Cancel
           </Button>

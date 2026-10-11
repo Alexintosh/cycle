@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react"
 import { toast } from "sonner"
 import { EmptyState, ErrorState, LoadingState } from "@/components/page-state"
+import { TextWithLinks } from "@/components/text-with-links"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -124,16 +125,16 @@ function toPackagePayload(editor: PackageEditorState): PackageUpsertInput {
 
 function PackageItemPreview({ item }: { item: PackageItemDefinition }) {
   return (
-    <li className="min-w-0 rounded-xl border border-slate-200 bg-slate-50/80 px-3 py-2">
+    <li className="min-w-0 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/80 dark:bg-slate-800/80 px-3 py-2">
       <div className="flex items-center justify-between gap-3">
         <div className="min-w-0">
-          <p className="text-sm font-medium text-slate-900">
+          <p className="text-sm font-medium text-slate-900 dark:text-slate-100">
             <span className="mr-2">{item.emoji ?? "✨"}</span>
             {item.title}
           </p>
-          <p className="mt-1 text-xs text-slate-500">{item.description}</p>
+          <p className="mt-1 text-xs text-slate-500 dark:text-slate-400"><TextWithLinks text={item.description} /></p>
         </div>
-        <div className="shrink-0 text-right text-[11px] uppercase tracking-[0.18em] text-slate-500">
+        <div className="shrink-0 text-right text-[11px] uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">
           <p>{item.timeframe}</p>
           <p>{item.goal ? `${item.goal}x` : "flex"}</p>
         </div>
@@ -159,13 +160,13 @@ function RegistryCard({
   const isInstalled = Boolean(item.installation)
 
   return (
-    <Card className="rounded-[1.5rem] border-slate-200 bg-white/90 shadow-soft">
+    <Card className="rounded-[1.5rem] border-slate-200 dark:border-slate-700 bg-white/90 dark:bg-slate-900/90 shadow-soft">
       <CardHeader className="gap-4">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="min-w-0">
-            <p className="text-xs uppercase tracking-[0.18em] text-sky-700">{item.author}</p>
-            <CardTitle className="mt-1 text-2xl text-slate-950">{item.title}</CardTitle>
-            <CardDescription className="mt-2 max-w-2xl text-sm leading-6 text-slate-600">{item.description}</CardDescription>
+            <p className="text-xs uppercase tracking-[0.18em] text-sky-700 dark:text-sky-400">{item.author}</p>
+            <CardTitle className="mt-1 text-2xl text-slate-950 dark:text-slate-50">{item.title}</CardTitle>
+            <CardDescription className="mt-2 max-w-2xl text-sm leading-6 text-slate-600 dark:text-slate-300"><TextWithLinks text={item.description} /></CardDescription>
           </div>
           <div className="flex flex-wrap items-center gap-2">
             <Badge variant="outline">{item.version}</Badge>
@@ -176,7 +177,7 @@ function RegistryCard({
         </div>
         <div className="flex flex-wrap gap-2">
           {item.tags.map((tag) => (
-            <Badge key={tag} variant="outline" className="border-slate-200 bg-slate-50 text-slate-700">
+            <Badge key={tag} variant="outline" className="border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-300">
               {tag}
             </Badge>
           ))}
@@ -184,7 +185,7 @@ function RegistryCard({
       </CardHeader>
       <CardContent className="space-y-4">
         {item.installation ? (
-          <div className="rounded-2xl border border-slate-200 bg-slate-50/70 px-4 py-3 text-sm text-slate-600">
+          <div className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50/70 dark:bg-slate-800/70 px-4 py-3 text-sm text-slate-600 dark:text-slate-300">
             Installed {formatInstalledDate(item.installation.installedAt)}. Tracking {item.installation.habitCount} rituals/upkeep
             items from this package.
           </div>
@@ -233,22 +234,22 @@ function OwnedPackageCard({
   onEdit: (item: OwnedPackage) => void
 }) {
   return (
-    <div className={`rounded-2xl border p-4 ${isActive ? "border-sky-400 bg-sky-50/70" : "border-slate-200 bg-slate-50/70"}`}>
+    <div className={`rounded-2xl border p-4 ${isActive ? "border-sky-400 bg-sky-50/70 dark:bg-sky-950/70" : "border-slate-200 dark:border-slate-700 bg-slate-50/70 dark:bg-slate-800/70"}`}>
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <p className="text-lg font-semibold text-slate-950">{item.title}</p>
-          <p className="mt-1 text-sm text-slate-600">{item.description || "No description yet."}</p>
+          <p className="text-lg font-semibold text-slate-950 dark:text-slate-50">{item.title}</p>
+          <p className="mt-1 text-sm text-slate-600 dark:text-slate-300"><TextWithLinks text={item.description || "No description yet."} /></p>
         </div>
         <Badge variant="outline" className="shrink-0">{item.version}</Badge>
       </div>
-      <div className="mt-4 flex flex-wrap gap-2 text-sm text-slate-600">
+      <div className="mt-4 flex flex-wrap gap-2 text-sm text-slate-600 dark:text-slate-300">
         <span>{item.itemCount} items</span>
         <span>·</span>
         <span>Updated {formatInstalledDate(item.updatedAt)}</span>
       </div>
       <div className="mt-4 flex flex-wrap gap-2">
         {item.tags.map((tag) => (
-          <Badge key={tag} variant="outline" className="border-slate-200 bg-white text-slate-700">
+          <Badge key={tag} variant="outline" className="border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300">
             {tag}
           </Badge>
         ))}
@@ -360,12 +361,12 @@ export function PackagesPage() {
   return (
     <main className="container mx-auto px-4 py-8 [overflow-wrap:anywhere]">
       <div className="mb-8">
-        <p className="text-sm uppercase tracking-[0.2em] text-indigo-700">Packages</p>
-        <h1 className="text-4xl font-semibold tracking-tight text-slate-950">Create, publish, and install life systems</h1>
-        <p className="mt-2 max-w-3xl text-sm text-slate-600">
+        <p className="text-sm uppercase tracking-[0.2em] text-indigo-700 dark:text-indigo-400">Packages</p>
+        <h1 className="text-4xl font-semibold tracking-tight text-slate-950 dark:text-slate-50">Create, publish, and install life systems</h1>
+        <p className="mt-2 max-w-3xl text-sm text-slate-600 dark:text-slate-300">
           Packages are public by default. There are no drafts here: saving a package publishes it immediately into the Cycle registry.
         </p>
-        <p className="mt-3 text-xs uppercase tracking-[0.16em] text-slate-500">
+        <p className="mt-3 text-xs uppercase tracking-[0.16em] text-slate-500 dark:text-slate-400">
           Registry v{registryMeta.schemaVersion}
           {registryMeta.updatedAt ? ` · updated ${formatInstalledDate(registryMeta.updatedAt)}` : ""}
         </p>
@@ -377,7 +378,7 @@ export function PackagesPage() {
         <ErrorState message={error} />
       ) : (
         <div className="space-y-6">
-          <Card className="rounded-[1.25rem] bg-white/90 shadow-soft">
+          <Card className="rounded-[1.25rem] bg-white/90 dark:bg-slate-900/90 shadow-soft">
             <CardHeader className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
               <div>
                 <CardTitle className="text-xl">Your packages</CardTitle>
@@ -403,7 +404,7 @@ export function PackagesPage() {
             </CardContent>
           </Card>
 
-          <Card className="rounded-[1.25rem] bg-white/90 shadow-soft">
+          <Card className="rounded-[1.25rem] bg-white/90 dark:bg-slate-900/90 shadow-soft">
             <CardHeader>
               <CardTitle className="text-xl">{editingPackage ? `Edit ${editingPackage.title}` : "Publish a new package"}</CardTitle>
               <CardDescription>
@@ -457,8 +458,8 @@ export function PackagesPage() {
               <div className="space-y-4">
                 <div className="flex items-center justify-between gap-3">
                   <div>
-                    <h2 className="text-lg font-semibold text-slate-950">Package items</h2>
-                    <p className="text-sm text-slate-600">These become the rituals or upkeep entries installed from this package.</p>
+                    <h2 className="text-lg font-semibold text-slate-950 dark:text-slate-50">Package items</h2>
+                    <p className="text-sm text-slate-600 dark:text-slate-300">These become the rituals or upkeep entries installed from this package.</p>
                   </div>
                   <Button type="button" variant="outline" onClick={addItem}>
                     Add item
@@ -467,9 +468,9 @@ export function PackagesPage() {
 
                 <div className="space-y-4">
                   {editor.items.map((item, index) => (
-                    <div key={item.id} className="rounded-2xl border border-slate-200 bg-slate-50/70 p-4">
+                    <div key={item.id} className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50/70 dark:bg-slate-800/70 p-4">
                       <div className="mb-4 flex items-center justify-between gap-3">
-                        <p className="text-sm font-semibold uppercase tracking-[0.14em] text-slate-600">Item {index + 1}</p>
+                        <p className="text-sm font-semibold uppercase tracking-[0.14em] text-slate-600 dark:text-slate-300">Item {index + 1}</p>
                         <Button
                           type="button"
                           variant="ghost"
@@ -556,7 +557,7 @@ export function PackagesPage() {
             </CardContent>
           </Card>
 
-          <Card className="rounded-[1.25rem] bg-white/90 shadow-soft">
+          <Card className="rounded-[1.25rem] bg-white/90 dark:bg-slate-900/90 shadow-soft">
             <CardHeader>
               <CardTitle className="text-xl">Registry</CardTitle>
               <CardDescription>Install public packages from the shared catalog and keep them up to date.</CardDescription>
@@ -581,7 +582,7 @@ export function PackagesPage() {
             </CardContent>
           </Card>
 
-          <Card className="rounded-[1.25rem] bg-white/90 shadow-soft">
+          <Card className="rounded-[1.25rem] bg-white/90 dark:bg-slate-900/90 shadow-soft">
             <CardHeader>
               <CardTitle className="text-xl">Installed</CardTitle>
               <CardDescription>Review installed packages and remove what you no longer need.</CardDescription>
@@ -594,15 +595,15 @@ export function PackagesPage() {
                   {sortedInstalled.map((item) => {
                     const registryEntry = sortedRegistry.find((pkg) => pkg.id === item.packageId)
                     return (
-                      <div key={item.id} className="rounded-2xl border border-slate-200 bg-slate-50/70 p-4">
+                      <div key={item.id} className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50/70 dark:bg-slate-800/70 p-4">
                         <div className="flex items-start justify-between gap-3">
                           <div className="min-w-0">
-                            <p className="text-lg font-semibold text-slate-950">{item.title}</p>
-                            <p className="mt-1 text-sm text-slate-600">{item.description ?? item.packageId}</p>
+                            <p className="text-lg font-semibold text-slate-950 dark:text-slate-50">{item.title}</p>
+                            <p className="mt-1 text-sm text-slate-600 dark:text-slate-300"><TextWithLinks text={item.description ?? item.packageId} /></p>
                           </div>
                           <Badge variant="outline" className="shrink-0">{item.installedVersion}</Badge>
                         </div>
-                        <div className="mt-4 flex flex-wrap gap-2 text-sm text-slate-600">
+                        <div className="mt-4 flex flex-wrap gap-2 text-sm text-slate-600 dark:text-slate-300">
                           <span>{item.habitCount} items installed</span>
                           <span>·</span>
                           <span>Updated {formatInstalledDate(item.updatedAt)}</span>

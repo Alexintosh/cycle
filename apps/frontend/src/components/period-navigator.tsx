@@ -95,7 +95,7 @@ export function PeriodNavigator({
   }
 
   return (
-    <div className={`flex items-center justify-center gap-4 rounded-2xl border bg-white/80 px-4 py-4 shadow-sm backdrop-blur ${className}`}>
+    <div className={`flex items-center justify-center gap-4 rounded-2xl border bg-white/80 dark:bg-slate-900/80 px-4 py-4 shadow-sm backdrop-blur ${className}`}>
       <Button
         variant="outline"
         size="icon"

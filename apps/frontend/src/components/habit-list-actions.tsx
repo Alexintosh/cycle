@@ -3,6 +3,7 @@ import { Plus, Trash, AlertTriangle } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { HabitForm } from "./habit-form"
 import { useAuth } from "@/features/auth/auth-context"
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -34,19 +35,23 @@ export function HabitListActions({ onHabitChange }: HabitListActionsProps) {
     }
   }
 
-  if (isAddingHabit) {
-    return <HabitForm onCancel={() => setIsAddingHabit(false)} onSuccess={async () => {
-      setIsAddingHabit(false)
-      await onHabitChange()
-    }} />
-  }
-
   return (
     <div className="flex gap-2">
-      <Button onClick={() => setIsAddingHabit(true)} className="flex items-center gap-1">
-        <Plus className="h-4 w-4" />
-        <span>New Ritual</span>
-      </Button>
+      <Dialog open={isAddingHabit} onOpenChange={setIsAddingHabit}>
+        <DialogTrigger asChild>
+          <Button className="flex items-center gap-1">
+            <Plus className="h-4 w-4" />
+            <span>New Ritual</span>
+          </Button>
+        </DialogTrigger>
+        <DialogContent className="max-h-[calc(100dvh-2rem)] w-[calc(100%-2rem)] overflow-y-auto rounded-2xl">
+          <DialogHeader>
+            <DialogTitle>New Ritual</DialogTitle>
+            <DialogDescription>Add a ritual or upkeep item to your routine.</DialogDescription>
+          </DialogHeader>
+          <HabitForm embedded onCancel={() => setIsAddingHabit(false)} onSuccess={onHabitChange} />
+        </DialogContent>
+      </Dialog>
       
       <AlertDialog>
         <AlertDialogTrigger asChild>

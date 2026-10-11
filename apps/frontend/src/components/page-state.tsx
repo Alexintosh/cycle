@@ -2,7 +2,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 
 export function LoadingState({ message }: { message: string }) {
   return (
-    <Card className="border-dashed bg-white/80 shadow-sm">
+    <Card className="border-dashed bg-white/80 dark:bg-slate-900/80 shadow-sm">
       <CardHeader>
         <CardTitle className="text-base">Loading</CardTitle>
       </CardHeader>
@@ -30,7 +30,7 @@ export function EmptyState({
   message: string
 }) {
   return (
-    <Card className="border-dashed bg-white/80 shadow-sm">
+    <Card className="border-dashed bg-white/80 dark:bg-slate-900/80 shadow-sm">
       <CardHeader>
         <CardTitle className="text-base">{title}</CardTitle>
       </CardHeader>
