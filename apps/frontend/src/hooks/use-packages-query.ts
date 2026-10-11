@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
 import { ApiError } from "@/api/client"
 import { useAuth } from "@/features/auth/auth-context"
 import type {
@@ -17,7 +17,9 @@ type UsePackagesQueryResult = {
 }
 
 export function usePackagesQuery(): UsePackagesQueryResult {
-  const { status, api } = useAuth()
+  const { status, api, user } = useAuth()
+  const accountRef = useRef<string | undefined>(user?.id)
+  accountRef.current = user?.id
   const [registryMeta, setRegistryMeta] = useState<Omit<PackageRegistryPayload, "packages">>({
     schemaVersion: 1,
     updatedAt: "",
@@ -37,10 +39,12 @@ export function usePackagesQuery(): UsePackagesQueryResult {
       return
     }
 
+    const account = accountRef.current
     try {
       setIsLoading(true)
       setError(null)
       const [nextRegistry, nextInstalled] = await Promise.all([api.listPackageRegistry(), api.listInstalledPackages()])
+      if (accountRef.current !== account) return
       setRegistryMeta({
         schemaVersion: nextRegistry.schemaVersion,
         updatedAt: nextRegistry.updatedAt,
@@ -48,12 +52,13 @@ export function usePackagesQuery(): UsePackagesQueryResult {
       setRegistry(nextRegistry.packages)
       setInstalled(nextInstalled)
     } catch (loadError) {
+      if (accountRef.current !== account) return
       const message = loadError instanceof ApiError ? loadError.message : "Something went wrong while loading packages."
       setError(message)
     } finally {
-      setIsLoading(false)
+      if (accountRef.current === account) setIsLoading(false)
     }
-  }, [api, status])
+  }, [api, status, user?.id])
 
   useEffect(() => {
     void refetch()

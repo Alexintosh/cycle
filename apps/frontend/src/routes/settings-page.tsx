@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type ChangeEvent } from "react"
+import { RecoveryCodeList } from "@/components/recovery-code-list"
 import { useAuth } from "@/features/auth/auth-context"
 import type { PasskeySummary } from "@/lib/types"
 
@@ -22,6 +23,8 @@ export function SettingsPage() {
   const { api, createPasskey, supportsPasskeys } = useAuth()
   const fileInputRef = useRef<HTMLInputElement | null>(null)
   const [importMode, setImportMode] = useState<ImportMode>("replace")
+  const [recoveryCodes, setRecoveryCodes] = useState<string[]>([])
+  const [generatingCodes, setGeneratingCodes] = useState(false)
   const [passkeyName, setPasskeyName] = useState("")
   const [passkeys, setPasskeys] = useState<PasskeySummary[]>([])
   const [isLoadingPasskeys, setIsLoadingPasskeys] = useState(true)
@@ -164,8 +167,19 @@ export function SettingsPage() {
 
       <div className="grid gap-6 lg:grid-cols-2">
         <section className="rounded-2xl border bg-white/70 p-4 shadow-sm">
+          <div className="mb-6 space-y-3">
+            <h2 className="text-lg font-semibold text-slate-900">Recovery codes</h2>
+            <p className="text-sm text-slate-600">Generate a new set if you lost your codes. This invalidates all previous recovery codes.</p>
+            <button type="button" className="rounded-lg border px-4 py-2 text-sm" disabled={generatingCodes} onClick={async () => {
+              setGeneratingCodes(true); setError("")
+              try { setRecoveryCodes((await api.regenerateRecoveryCodes()).recoveryCodes) }
+              catch (err) { setError(err instanceof Error ? err.message : "Unable to generate recovery codes.") }
+              finally { setGeneratingCodes(false) }
+            }}>{generatingCodes ? "Generating…" : "Generate new recovery codes"}</button>
+            {recoveryCodes.length > 0 && <RecoveryCodeList codes={recoveryCodes} />}
+          </div>
           <h2 className="text-lg font-semibold text-slate-900">Passkeys</h2>
-          <p className="mt-1 text-sm text-slate-600">Register a passkey here, then use it from the login screen instead of waiting for an email code.</p>
+          <p className="mt-1 text-sm text-slate-600">Add a second passkey to keep access if you lose a device.</p>
 
           {supportsPasskeys ? (
             <>
@@ -210,7 +224,7 @@ export function SettingsPage() {
                 </div>
                 <button
                   className="rounded-lg border px-3 py-1.5 text-sm text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
-                  disabled={removingPasskeyId === item.id}
+                  disabled={removingPasskeyId === item.id || passkeys.length <= 1}
                   onClick={() => void handleDeletePasskey(item.id)}
                   type="button"
                 >

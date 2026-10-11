@@ -6,6 +6,12 @@
     "dev": "make dev",
     "install:all": "make install",
     "typecheck": "make typecheck",
-    "test": "make test"
+    "test": "make test",
+    "build:cloudflare": "cd apps/frontend && bun run build && cd ../backend && bun run build:worker",
+    "verify:cloudflare": "make typecheck && make test && bun run test:data-migration && bun run build:cloudflare && cd apps/backend && node scripts/test-worker.mjs",
+    "dev:cloudflare": "cd apps/frontend && bun run build && cd ../backend && bun run dev:cloudflare",
+    "db:backup": "python3 scripts/prepare-d1.py apps/backend/data/habit-tracker.db",
+    "deploy:cloudflare": "bun run verify:cloudflare && cd apps/backend && bun run deploy",
+    "test:data-migration": "python3 scripts/test_prepare_d1.py"
   }
 }

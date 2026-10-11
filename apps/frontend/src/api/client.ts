@@ -104,6 +104,7 @@ function mapHabit(habit: BackendHabit): HabitWithLogs {
 
 export class ApiClient {
   private tokenSource?: TokenSource
+  private refreshInFlight?: Promise<SessionTokens>
 
   constructor(tokenSource?: TokenSource) {
     this.tokenSource = tokenSource
@@ -111,7 +112,9 @@ export class ApiClient {
 
   private async request<T>(path: string, init: RequestInit = {}, allowRefresh = true): Promise<T> {
     const headers = new Headers(init.headers)
-    headers.set("Content-Type", "application/json")
+    if (init.body != null && !headers.has("Content-Type")) {
+      headers.set("Content-Type", "application/json")
+    }
 
     const tokens = this.tokenSource?.getTokens() ?? null
     if (tokens?.token) {
@@ -126,7 +129,8 @@ export class ApiClient {
     const payload = (await response.json()) as ApiResponse<T>
 
     if (response.status === 401 && allowRefresh && tokens?.refreshToken && this.tokenSource) {
-      const refreshed = await this.refresh(tokens.refreshToken)
+      this.refreshInFlight ??= this.refresh(tokens.refreshToken).finally(() => { this.refreshInFlight = undefined })
+      const refreshed = await this.refreshInFlight
       this.tokenSource.setTokens(refreshed)
       return this.request<T>(path, init, false)
     }
@@ -141,6 +145,22 @@ export class ApiClient {
     }
 
     return payload.data
+  }
+
+  beginEnrollment(email: string, displayName?: string, recoveryCode?: string) {
+    return this.request<{ challengeId: string; options: PublicKeyCredentialCreationOptionsJSON }>("/auth/enroll/options", {
+      method: "POST", body: JSON.stringify({ email, displayName, recoveryCode }),
+    }, false)
+  }
+
+  finishEnrollment(challengeId: string, response: RegistrationResponseJSON) {
+    return this.request<SessionTokens & { user: User; recoveryCodes: string[] }>("/auth/enroll/verify", {
+      method: "POST", body: JSON.stringify({ challengeId, response }),
+    }, false)
+  }
+
+  regenerateRecoveryCodes() {
+    return this.request<{ recoveryCodes: string[] }>("/auth/recovery-codes", { method: "POST" })
   }
 
   requestOtp(email: string) {
@@ -174,6 +194,10 @@ export class ApiClient {
       },
       false,
     )
+  }
+
+  logout() {
+    return this.request<{ message: string }>("/auth/logout", { method: "POST" }, false)
   }
 
   me() {

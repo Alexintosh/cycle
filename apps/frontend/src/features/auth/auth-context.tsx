@@ -14,6 +14,8 @@ type AuthContextValue = {
   supportsPasskeys: boolean
   isBypassAuth: boolean
   authMode: "standard" | "bypass" | null
+  enrollWithPasskey: (email: string, displayName?: string, recoveryCode?: string) => Promise<string[]>
+  completeEnrollment: () => void
   requestOtp: (email: string) => Promise<{ email: string; expiresAt: string; isNewUser: boolean; reusedExistingCode: boolean }>
   verifyOtp: (input: { email: string; code: string; displayName?: string }) => Promise<void>
   createPasskey: (name?: string) => Promise<PasskeySummary>
@@ -59,6 +61,7 @@ function getPasskeyErrorMessage(error: unknown, fallback: string) {
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const initialStoredSession = readStoredSession()
+  const [pendingEnrollment, setPendingEnrollment] = useState<(SessionTokens & { user: User }) | null>(null)
   const [tokens, setTokens] = useState<SessionTokens | null>(initialStoredSession)
   const [user, setUser] = useState<User | null>(null)
   const [status, setStatus] = useState<AuthStatus>("loading")
@@ -124,6 +127,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       supportsPasskeys,
       isBypassAuth,
       authMode,
+      enrollWithPasskey: async (email, displayName, recoveryCode) => {
+        try {
+          const registration = await api.beginEnrollment(email.trim().toLowerCase(), displayName?.trim() || undefined, recoveryCode?.trim() || undefined)
+          const response = await startRegistration({ optionsJSON: registration.options })
+          const session = await api.finishEnrollment(registration.challengeId, response)
+          setPendingEnrollment(session)
+          return session.recoveryCodes
+        } catch (error) {
+          throw new Error(getPasskeyErrorMessage(error, "Unable to create your passkey."))
+        }
+      },
+      completeEnrollment: () => {
+        if (!pendingEnrollment) return
+        setTokens({ token: pendingEnrollment.token, refreshToken: pendingEnrollment.refreshToken })
+        setUser(pendingEnrollment.user)
+        setAuthMode("standard")
+        setStatus("authenticated")
+        setPendingEnrollment(null)
+      },
       requestOtp: (email) => api.requestOtp(email),
       verifyOtp: async ({ email, code, displayName }) => {
         const session = await api.verifyOtp(email, code, displayName)
@@ -178,13 +200,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (isBypassAuth) {
           return
         }
+        void api.logout().catch(() => undefined)
         setTokens(null)
         setUser(null)
         setAuthMode("standard")
         setStatus("anonymous")
       },
     }),
-    [api, authMode, isBypassAuth, status, supportsPasskeys, user],
+    [api, authMode, isBypassAuth, status, supportsPasskeys, user, pendingEnrollment],
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

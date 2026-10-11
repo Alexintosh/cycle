@@ -6,7 +6,9 @@ import type { HabitWithLogs } from "@/lib/types"
 type QueryFactory = () => Promise<HabitWithLogs[]>
 
 export function useHabitsQuery(factory: QueryFactory, deps: unknown[]) {
-  const { status } = useAuth()
+  const { status, user } = useAuth()
+  const accountRef = useRef<string | undefined>(user?.id)
+  accountRef.current = user?.id
   const [habits, setHabits] = useState<HabitWithLogs[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -24,18 +26,21 @@ export function useHabitsQuery(factory: QueryFactory, deps: unknown[]) {
       return
     }
 
+    const account = accountRef.current
     try {
       setIsLoading(true)
       setError(null)
       const next = await factoryRef.current()
+      if (accountRef.current !== account) return
       setHabits(next)
     } catch (error) {
+      if (accountRef.current !== account) return
       const message = error instanceof ApiError ? error.message : "Something went wrong while loading habits."
       setError(message)
     } finally {
-      setIsLoading(false)
+      if (accountRef.current === account) setIsLoading(false)
     }
-  }, [status])
+  }, [status, user?.id])
 
   useEffect(() => {
     void refetch()

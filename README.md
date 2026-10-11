@@ -54,7 +54,7 @@ For convenience, the current registry is internal to the backend. The long-term 
 - `apps/frontend`
   React + Vite app
 - `apps/backend`
-  Elysia + SQLite API with OTP auth, passkeys, Swagger, and the internal package registry
+  Elysia + SQLite/D1 API with passwordless passkey auth, Swagger, and the internal package registry
 
 ## Run Locally
 
@@ -76,13 +76,20 @@ This starts:
 - backend on `http://localhost:3101`
 - Swagger docs on `http://localhost:3101/swagger`
 
+## Cloudflare and multi-user deployment
+
+Cycle supports a Cloudflare Worker with D1 and React static assets on the same origin, following [Blueprint](https://github.com/Alexintosh/blueprint). Each account owns its rituals, logs, packages and passkeys. New accounts use an email identifier and a passkey, with one-use recovery codes. Email ownership is not verified. Sessions rotate on refresh and are revoked on logout. Existing user data is not modified on login.
+
+```bash
+bun run verify:cloudflare
+bun run db:backup
+```
+
+Follow [the migration and deployment guide](docs/cloudflare.md) to back up the authoritative SQLite database, validate the export, import it into a fresh D1 database and deploy. The backup command does not touch the source database or remote Cloudflare resources. The default deployment requires no email service or paid email subscription. Migrated accounts without a passkey use an operator-issued setup code; see the guide.
+
 ## Passkeys
 
-Cycle now supports passkeys for returning users.
-
-- Sign in once with email OTP.
-- Open Settings and register a passkey for the current device.
-- Use the passkey button on the login screen on future sign-ins.
+Create an account with an email identifier and a passkey, then save the recovery codes. Sign in using your passkey. Settings lets you add a second passkey and replace recovery codes. Recovery replaces previous passkeys and sessions. No passwords or email sending are required.
 
 WebAuthn defaults:
 

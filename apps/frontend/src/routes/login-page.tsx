@@ -30,13 +30,13 @@ export function LoginPage() {
         <section className="hidden rounded-[2rem] border border-white/70 bg-white/70 p-10 shadow-soft backdrop-blur lg:block">
           <div className="max-w-xl space-y-6">
             <span className="inline-flex items-center rounded-full bg-sky-100 px-3 py-1 text-xs font-semibold uppercase tracking-[0.22em] text-sky-700">
-              Rebuilt frontend
+              Cycle
             </span>
             <h1 className="text-5xl font-semibold tracking-tight text-slate-950">
               Habits, recaps, and long-term momentum in one clean workspace.
             </h1>
             <p className="text-lg leading-8 text-slate-600">
-              Sign in with your email, get a one-time code, and pick up right where the new API leaves off.
+              Create your account with an email address and a passkey. Sign in with your fingerprint, face, or device PIN.
             </p>
             <div className="grid gap-4 sm:grid-cols-3">
               <div className="rounded-2xl border bg-white p-4">
