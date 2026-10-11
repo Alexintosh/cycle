@@ -37,7 +37,7 @@ const mf = new Miniflare(convertV4MiniflareOptions({
 }))
 try {
   const db = await mf.getD1Database('DB')
-  const schema = await readFile('migrations/0001_initial.sql', 'utf8') + await readFile('migrations/0002_passkey_signup.sql', 'utf8')
+  const schema = await readFile('migrations/0001_initial.sql', 'utf8') + await readFile('migrations/0002_passkey_signup.sql', 'utf8') + await readFile('migrations/0003_offline_sync.sql', 'utf8') + await readFile('migrations/0004_package_authoring.sql', 'utf8')
   await db.batch(schema.split(';').map((part) => part.trim()).filter(Boolean).map((part) => db.prepare(part)))
   async function call(path, token, body, method) {
     return mf.dispatchFetch(`https://cycle.test/api${path}`, {
@@ -79,8 +79,35 @@ try {
   assert.ok(pkg)
   const installed = await call(`/packages/${pkg.id}/install`, alice.token, {})
   assert.equal(installed.status, 200, await installed.text())
+  const ownedInput = { title: 'D1 published package', version: '1.0.0', items: Array.from({length:15},(_,index) => ({id:'item-'+index,title:'Item '+index,timeframe:'monthly',section:'UPKEEP',goal:1})) }
+  const createdPackage = await call('/packages',alice.token,ownedInput)
+  const createdPayload = await createdPackage.json()
+  assert.equal(createdPackage.status,200,JSON.stringify(createdPayload))
+  assert.equal(createdPayload.data.items.length,15)
+  const ownedId = createdPayload.data.id
+  const owned = (await (await call('/packages/mine',alice.token)).json()).data
+  assert.ok(owned.some(item => item.id===ownedId))
+  assert.equal((await call('/packages/'+ownedId,bob.token,ownedInput,'PATCH')).status,404)
+  const updatedPackage = await call('/packages/'+ownedId,alice.token,{...ownedInput,version:'1.1.0'},'PATCH')
+  assert.equal(updatedPackage.status,200,await updatedPackage.text())
+  assert.equal((await call('/packages/'+ownedId+'/install',bob.token,{})).status,200)
+  await db.prepare("CREATE TRIGGER reject_test_item BEFORE INSERT ON package_items WHEN NEW.title = 'Rejected test item' BEGIN SELECT RAISE(ABORT, 'Test rollback'); END").run()
+  const rejectedPackage = await call('/packages',alice.token,{title:'Must roll back',version:'1',items:[{title:'Rejected test item',timeframe:'daily'}]})
+  assert.equal(rejectedPackage.status,400,await rejectedPackage.text())
+  assert.equal(await db.prepare("SELECT id FROM packages WHERE title='Must roll back'").first(),null)
+  await db.prepare('DROP TRIGGER reject_test_item').run()
   const manyLogs = await call(`/habits/${aliceData.habits[0].id}/logs`, alice.token, { count: 100, date: '2026-10-11' })
   assert.equal(manyLogs.status, 200, await manyLogs.text())
+  const offlineCommand = { id: crypto.randomUUID(), habitId: aliceData.habits[0].id, kind: 'add-log', date: '2026-10-11', count: 2, loggedAt: new Date().toISOString() }
+  const beforeOffline = (await (await call('/data/export', alice.token)).json()).data.logs.length
+  const sync = await call('/habits/sync', alice.token, offlineCommand)
+  assert.equal(sync.status,200,await sync.text())
+  const replay = await call('/habits/sync', alice.token, offlineCommand)
+  assert.equal(replay.status,200,await replay.text())
+  const afterOffline = (await (await call('/data/export', alice.token)).json()).data.logs.length
+  assert.equal(afterOffline,beforeOffline+2)
+  assert.equal((await call('/habits/sync',bob.token,{...offlineCommand,id:crypto.randomUUID()})).status,404)
+  assert.equal((await call('/habits/sync',alice.token,{...offlineCommand,count:3})).status,409)
   const refreshed = await call('/auth/refresh', null, { refreshToken: alice.refreshToken })
   assert.equal(refreshed.status, 200)
   const tokens = (await refreshed.json()).data
@@ -106,7 +133,7 @@ const passwordless = new Miniflare(convertV4MiniflareOptions({
 try {
   const { testAuthenticator } = await import('./webauthn-fixture.mjs')
   const db = await passwordless.getD1Database('DB')
-  for (const file of ['0001_initial.sql','0002_passkey_signup.sql']) {
+  for (const file of ['0001_initial.sql','0002_passkey_signup.sql','0003_offline_sync.sql','0004_package_authoring.sql']) {
     const schema = await readFile('migrations/'+file,'utf8')
     await db.batch(schema.split(';').map(part => part.trim()).filter(Boolean).map(part => db.prepare(part)))
   }

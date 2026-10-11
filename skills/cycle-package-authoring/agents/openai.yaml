@@ -1,0 +1,7 @@
+interface:
+  display_name: "Cycle Package Authoring"
+  short_description: "Research and publish strong Cycle packages"
+  default_prompt: "Use $cycle-package-authoring to research, draft, and publish a high-quality Cycle package."
+
+policy:
+  allow_implicit_invocation: true

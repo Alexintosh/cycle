@@ -6,13 +6,17 @@ import { installedPackages } from "../../db/schema.ts"
 import { fail, ok } from "../../lib/api.ts"
 import { getAuthenticatedUser } from "../../plugins/auth.ts"
 import {
-  createPackageCatalog,
+  createOwnedPackageForUser,
+  getPublicRegistryUpdatedAt,
   getInstalledPackageForUser,
   installPackageForUser,
   listInstalledPackagesForUser,
+  listOwnedPackagesForUser,
   listRegistryPackagesForUser,
   removeInstalledPackageForUser,
+  updateOwnedPackageForUser,
   updateInstalledPackageForUser,
+  seedPackageRegistry,
 } from "./service.ts"
 import type { PackageRegistry } from "./types.ts"
 
@@ -23,12 +27,30 @@ export function createPackageRoutes(services: {
   config: AppConfig
   packageRegistry?: PackageRegistry
 }) {
-  const { db, config, packageRegistry } = services
-  const catalog = createPackageCatalog({
-    registry: packageRegistry,
+  const { db, config } = services
+  let ready: Promise<unknown> | undefined
+
+  const packageItemBody = t.Object({
+    id: t.Optional(t.String()),
+    timeframe: t.String(),
+    emoji: t.Optional(t.String()),
+    title: t.String(),
+    description: t.Optional(t.String()),
+    goal: t.Optional(t.Union([t.Number(), t.Null()])),
+    section: t.Optional(t.String()),
+    color: t.Optional(t.String()),
+  })
+
+  const packageBody = t.Object({
+    title: t.String(),
+    description: t.Optional(t.String()),
+    version: t.String(),
+    tags: t.Optional(t.Array(t.String())),
+    items: t.Array(packageItemBody),
   })
 
   return new Elysia({ aot: false, normalize: "typebox", prefix: "/packages" })
+    .onBeforeHandle(async () => { await (ready ??= seedPackageRegistry(db, services.packageRegistry)) })
     .get(
       "/registry",
       async (context: RouteContext) => {
@@ -45,10 +67,10 @@ export function createPackageRoutes(services: {
           return fail(set, 401, "UNAUTHORIZED", "Authentication is required.")
         }
 
-        const packages = await listRegistryPackagesForUser(db, user.id, catalog)
+        const packages = await listRegistryPackagesForUser(db, user.id)
         return ok({
-          schemaVersion: catalog.registry.schemaVersion,
-          updatedAt: catalog.registry.updatedAt,
+          schemaVersion: 1,
+          updatedAt: await getPublicRegistryUpdatedAt(db),
           packages,
         })
       },
@@ -57,6 +79,103 @@ export function createPackageRoutes(services: {
           tags: ["Packages"],
           summary: "Browse package registry",
           description: "Return the internal package registry annotated with install and update state for the authenticated user.",
+        },
+      },
+    )
+    .get(
+      "/mine",
+      async (context: RouteContext) => {
+        const { headers, set, accessTokens } = context
+        const user = await getAuthenticatedUser({
+          authorization: headers.authorization,
+          set,
+          accessTokens,
+          db,
+          config,
+        })
+
+        if (!user) {
+          return fail(set, 401, "UNAUTHORIZED", "Authentication is required.")
+        }
+
+        return ok(await listOwnedPackagesForUser(db, user.id))
+      },
+      {
+        detail: {
+          tags: ["Packages"],
+          summary: "List owned packages",
+          description: "Return the packages created and published by the authenticated user.",
+        },
+      },
+    )
+    .post(
+      "/",
+      async (context: RouteContext) => {
+        const { body, headers, set, accessTokens } = context
+        const user = await getAuthenticatedUser({
+          authorization: headers.authorization,
+          set,
+          accessTokens,
+          db,
+          config,
+        })
+
+        if (!user) {
+          return fail(set, 401, "UNAUTHORIZED", "Authentication is required.")
+        }
+
+        try {
+          const createdPackage = await createOwnedPackageForUser(db, user, body)
+          return ok(createdPackage)
+        } catch (error) {
+          return fail(set, 400, "INVALID_PACKAGE", error instanceof Error ? error.message : "Invalid package.")
+        }
+      },
+      {
+        body: packageBody,
+        detail: {
+          tags: ["Packages"],
+          summary: "Create and publish a package",
+          description: "Create a new public package owned by the authenticated user.",
+        },
+      },
+    )
+    .patch(
+      "/:packageId",
+      async (context: RouteContext) => {
+        const { body, headers, params, set, accessTokens } = context
+        const user = await getAuthenticatedUser({
+          authorization: headers.authorization,
+          set,
+          accessTokens,
+          db,
+          config,
+        })
+
+        if (!user) {
+          return fail(set, 401, "UNAUTHORIZED", "Authentication is required.")
+        }
+
+        try {
+          const updatedPackage = await updateOwnedPackageForUser(db, user, params.packageId, body)
+          if (!updatedPackage) {
+            return fail(set, 404, "PACKAGE_NOT_FOUND", "Package not found.")
+          }
+
+          return ok(updatedPackage)
+        } catch (error) {
+          return fail(set, 400, "INVALID_PACKAGE", error instanceof Error ? error.message : "Invalid package.")
+        }
+      },
+      {
+        params: t.Object({
+          packageId: t.String(),
+        }),
+        body: packageBody,
+        detail: {
+          tags: ["Packages"],
+          summary: "Update and publish a package",
+          description: "Update a public package owned by the authenticated user. Changes are published immediately.",
         },
       },
     )
@@ -102,17 +221,16 @@ export function createPackageRoutes(services: {
           return fail(set, 401, "UNAUTHORIZED", "Authentication is required.")
         }
 
-        const pkg = catalog.getPackageById(params.packageId)
-        if (!pkg) {
-          return fail(set, 404, "PACKAGE_NOT_FOUND", "Package not found.")
-        }
-
-        const result = await installPackageForUser(db, user.id, pkg)
+        const result = await installPackageForUser(db, user.id, params.packageId)
         if (!result) {
-          const existing = await getInstalledPackageForUser(db, user.id, pkg.id)
-          return fail(set, 409, "PACKAGE_ALREADY_INSTALLED", "Package is already installed.", {
-            installation: existing,
-          })
+          const existing = await getInstalledPackageForUser(db, user.id, params.packageId)
+          if (existing) {
+            return fail(set, 409, "PACKAGE_ALREADY_INSTALLED", "Package is already installed.", {
+              installation: existing,
+            })
+          }
+
+          return fail(set, 404, "PACKAGE_NOT_FOUND", "Package not found.")
         }
 
         return ok(result)
@@ -144,14 +262,9 @@ export function createPackageRoutes(services: {
           return fail(set, 401, "UNAUTHORIZED", "Authentication is required.")
         }
 
-        const pkg = catalog.getPackageById(params.packageId)
-        if (!pkg) {
-          return fail(set, 404, "PACKAGE_NOT_FOUND", "Package not found.")
-        }
-
-        const result = await updateInstalledPackageForUser(db, user.id, pkg)
+        const result = await updateInstalledPackageForUser(db, user.id, params.packageId)
         if (!result) {
-          return fail(set, 404, "PACKAGE_NOT_INSTALLED", "Package is not installed yet.")
+          return fail(set, 404, "PACKAGE_NOT_FOUND", "Package not found.")
         }
 
         return ok(result)

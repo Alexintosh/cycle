@@ -30,19 +30,19 @@ function HabitRow({
   const label = habit.goal ? `${habit.achieved}/${habit.goal}` : `${habit.achieved} check-ins`
 
   return (
-    <li className="flex items-center justify-between rounded-xl border bg-white/80 p-3">
+    <li className="flex items-center justify-between rounded-xl border bg-white/80 dark:bg-slate-900/80 p-3">
       <div className="flex items-center gap-3">
         <span className="text-xl">{habit.emoji || "✨"}</span>
         <div>
-          <p className="font-medium text-slate-900">{habit.name}</p>
-          <p className="text-xs text-slate-500">{label}</p>
+          <p className="font-medium text-slate-900 dark:text-slate-100">{habit.name}</p>
+          <p className="text-xs text-slate-500 dark:text-slate-400">{label}</p>
         </div>
       </div>
       <button
         className={`rounded-lg px-3 py-1.5 text-sm font-medium transition ${
           isCompleted
             ? "bg-emerald-500 text-white hover:bg-emerald-600"
-            : "bg-slate-100 text-slate-700 hover:bg-slate-200"
+            : "bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700"
         }`}
         onClick={() => void onToggle(habit)}
         type="button"
@@ -91,6 +91,12 @@ export function DayPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
+  useEffect(() => {
+    const synced = () => { void load() }
+    window.addEventListener("cycle:data-synced", synced)
+    return () => window.removeEventListener("cycle:data-synced", synced)
+  }, [api])
+
   const handleToggle = async (habit: HabitWithLogs) => {
     const isCompleted = habit.logs.some((log) => log.date === todayIso && log.completed)
     await api.setDayStatus(habit.id, todayIso, !isCompleted)
@@ -100,17 +106,17 @@ export function DayPage() {
   return (
     <main className="container mx-auto px-4 py-8">
       <div className="mb-6">
-        <h1 className="text-3xl font-semibold tracking-tight text-slate-900">Today in Cycle</h1>
-        <p className="mt-1 text-sm text-slate-600">Today: {today.toLocaleDateString()}</p>
+        <h1 className="text-3xl font-semibold tracking-tight text-slate-900 dark:text-slate-100">Today in Cycle</h1>
+        <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">Today: {today.toLocaleDateString()}</p>
       </div>
 
-      {isLoading ? <p className="text-slate-600">Loading rituals...</p> : null}
-      {error ? <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p> : null}
+      {isLoading ? <p className="text-slate-600 dark:text-slate-300">Loading rituals...</p> : null}
+      {error ? <p className="rounded-lg bg-red-50 dark:bg-red-950 px-3 py-2 text-sm text-red-700 dark:text-red-300">{error}</p> : null}
 
       {!isLoading && !error ? (
         <div className="grid gap-6 lg:grid-cols-2">
-          <section className="rounded-2xl border bg-white/70 p-4 shadow-sm">
-            <h2 className="mb-3 text-lg font-semibold text-slate-900">Daily Rituals</h2>
+          <section className="rounded-2xl border bg-white/70 dark:bg-slate-900/70 p-4 shadow-sm">
+            <h2 className="mb-3 text-lg font-semibold text-slate-900 dark:text-slate-100">Daily Rituals</h2>
             {dailyHabits.length ? (
               <ul className="space-y-2">
                 {dailyHabits.map((habit) => (
@@ -118,12 +124,12 @@ export function DayPage() {
                 ))}
               </ul>
             ) : (
-              <p className="text-sm text-slate-500">No daily rituals yet.</p>
+              <p className="text-sm text-slate-500 dark:text-slate-400">No daily rituals yet.</p>
             )}
           </section>
 
-          <section className="rounded-2xl border bg-white/70 p-4 shadow-sm">
-            <h2 className="mb-3 text-lg font-semibold text-slate-900">Upkeep and Non-Daily Wins Today</h2>
+          <section className="rounded-2xl border bg-white/70 dark:bg-slate-900/70 p-4 shadow-sm">
+            <h2 className="mb-3 text-lg font-semibold text-slate-900 dark:text-slate-100">Upkeep and Non-Daily Wins Today</h2>
             {completedNonDailyHabits.length ? (
               <ul className="space-y-2">
                 {completedNonDailyHabits.map((habit) => (
@@ -131,7 +137,7 @@ export function DayPage() {
                 ))}
               </ul>
             ) : (
-              <p className="text-sm text-slate-500">No upkeep or non-daily completions yet.</p>
+              <p className="text-sm text-slate-500 dark:text-slate-400">No upkeep or non-daily completions yet.</p>
             )}
           </section>
         </div>

@@ -126,6 +126,36 @@ export interface PackageRegistryPayload {
   packages: RegistryPackage[]
 }
 
+export interface OwnedPackage {
+  id: string
+  title: string
+  description: string
+  author: string
+  version: string
+  tags: string[]
+  items: PackageItemDefinition[]
+  itemCount: number
+  createdAt: string
+  updatedAt: string
+}
+
+export interface PackageUpsertInput {
+  title: string
+  description: string
+  version: string
+  tags: string[]
+  items: Array<{
+    id?: string
+    timeframe: Frequency
+    emoji?: string
+    title: string
+    description: string
+    goal: number | null
+    section: string
+    color?: string
+  }>
+}
+
 export interface PackageRegistryEntry {
   id: string
   name: string

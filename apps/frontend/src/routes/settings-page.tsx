@@ -161,15 +161,15 @@ export function SettingsPage() {
   return (
     <main className="container mx-auto px-4 py-8">
       <div className="mb-6">
-        <h1 className="text-3xl font-semibold tracking-tight text-slate-900">Settings</h1>
-        <p className="mt-1 text-sm text-slate-600">Manage JSON exports and imports for your Cycle rituals and upkeep.</p>
+        <h1 className="text-3xl font-semibold tracking-tight text-slate-900 dark:text-slate-100">Settings</h1>
+        <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">Manage JSON exports and imports for your Cycle rituals and upkeep.</p>
       </div>
 
       <div className="grid gap-6 lg:grid-cols-2">
-        <section className="rounded-2xl border bg-white/70 p-4 shadow-sm">
+        <section className="rounded-2xl border bg-white/70 dark:bg-slate-900/70 p-4 shadow-sm">
           <div className="mb-6 space-y-3">
-            <h2 className="text-lg font-semibold text-slate-900">Recovery codes</h2>
-            <p className="text-sm text-slate-600">Generate a new set if you lost your codes. This invalidates all previous recovery codes.</p>
+            <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Recovery codes</h2>
+            <p className="text-sm text-slate-600 dark:text-slate-300">Generate a new set if you lost your codes. This invalidates all previous recovery codes.</p>
             <button type="button" className="rounded-lg border px-4 py-2 text-sm" disabled={generatingCodes} onClick={async () => {
               setGeneratingCodes(true); setError("")
               try { setRecoveryCodes((await api.regenerateRecoveryCodes()).recoveryCodes) }
@@ -178,17 +178,17 @@ export function SettingsPage() {
             }}>{generatingCodes ? "Generating…" : "Generate new recovery codes"}</button>
             {recoveryCodes.length > 0 && <RecoveryCodeList codes={recoveryCodes} />}
           </div>
-          <h2 className="text-lg font-semibold text-slate-900">Passkeys</h2>
-          <p className="mt-1 text-sm text-slate-600">Add a second passkey to keep access if you lose a device.</p>
+          <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Passkeys</h2>
+          <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">Add a second passkey to keep access if you lose a device.</p>
 
           {supportsPasskeys ? (
             <>
-              <label className="mt-4 block text-xs font-medium uppercase tracking-wide text-slate-500" htmlFor="passkey-name">
+              <label className="mt-4 block text-xs font-medium uppercase tracking-wide text-slate-500 dark:text-slate-400" htmlFor="passkey-name">
                 Passkey label
               </label>
               <input
                 id="passkey-name"
-                className="mt-2 w-full rounded-lg border bg-white px-3 py-2 text-sm"
+                className="mt-2 w-full rounded-lg border bg-white dark:bg-slate-900 px-3 py-2 text-sm"
                 maxLength={80}
                 placeholder="MacBook Air, iPhone, YubiKey"
                 value={passkeyName}
@@ -196,7 +196,7 @@ export function SettingsPage() {
               />
 
               <button
-                className="mt-4 rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
+                className="mt-4 rounded-lg bg-slate-900 dark:bg-slate-700 px-4 py-2 text-sm font-medium text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
                 disabled={isCreatingPasskey}
                 onClick={() => void handleCreatePasskey()}
                 type="button"
@@ -211,19 +211,19 @@ export function SettingsPage() {
           )}
 
           <div className="mt-5 space-y-3">
-            {isLoadingPasskeys ? <p className="text-sm text-slate-500">Loading passkeys...</p> : null}
-            {!isLoadingPasskeys && passkeys.length === 0 ? <p className="text-sm text-slate-500">No passkeys registered yet.</p> : null}
+            {isLoadingPasskeys ? <p className="text-sm text-slate-500 dark:text-slate-400">Loading passkeys...</p> : null}
+            {!isLoadingPasskeys && passkeys.length === 0 ? <p className="text-sm text-slate-500 dark:text-slate-400">No passkeys registered yet.</p> : null}
             {passkeys.map((item) => (
-              <div key={item.id} className="flex items-center justify-between rounded-xl border bg-white px-4 py-3">
+              <div key={item.id} className="flex items-center justify-between rounded-xl border bg-white dark:bg-slate-900 px-4 py-3">
                 <div>
-                  <p className="text-sm font-medium text-slate-900">{item.name}</p>
-                  <p className="mt-1 text-xs text-slate-500">
+                  <p className="text-sm font-medium text-slate-900 dark:text-slate-100">{item.name}</p>
+                  <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
                     {item.deviceType === "multiDevice" ? "Synced passkey" : "Single-device credential"}
                     {item.lastUsedAt ? ` · Last used ${new Date(item.lastUsedAt).toLocaleString()}` : " · Never used"}
                   </p>
                 </div>
                 <button
-                  className="rounded-lg border px-3 py-1.5 text-sm text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+                  className="rounded-lg border px-3 py-1.5 text-sm text-slate-700 dark:text-slate-300 transition hover:bg-slate-50 dark:hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
                   disabled={removingPasskeyId === item.id || passkeys.length <= 1}
                   onClick={() => void handleDeletePasskey(item.id)}
                   type="button"
@@ -235,11 +235,11 @@ export function SettingsPage() {
           </div>
         </section>
 
-        <section className="rounded-2xl border bg-white/70 p-4 shadow-sm">
-          <h2 className="text-lg font-semibold text-slate-900">Export</h2>
-          <p className="mt-1 text-sm text-slate-600">Download your rituals, upkeep, and logs as a JSON file.</p>
+        <section className="rounded-2xl border bg-white/70 dark:bg-slate-900/70 p-4 shadow-sm">
+          <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Export</h2>
+          <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">Download your rituals, upkeep, and logs as a JSON file.</p>
           <button
-            className="mt-4 rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
+            className="mt-4 rounded-lg bg-slate-900 dark:bg-slate-700 px-4 py-2 text-sm font-medium text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
             disabled={isExporting}
             onClick={() => void handleExport()}
             type="button"
@@ -248,16 +248,16 @@ export function SettingsPage() {
           </button>
         </section>
 
-        <section className="rounded-2xl border bg-white/70 p-4 shadow-sm">
-          <h2 className="text-lg font-semibold text-slate-900">Import</h2>
-          <p className="mt-1 text-sm text-slate-600">Import a previously exported Cycle JSON file.</p>
+        <section className="rounded-2xl border bg-white/70 dark:bg-slate-900/70 p-4 shadow-sm">
+          <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Import</h2>
+          <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">Import a previously exported Cycle JSON file.</p>
 
-          <label className="mt-4 block text-xs font-medium uppercase tracking-wide text-slate-500" htmlFor="import-mode">
+          <label className="mt-4 block text-xs font-medium uppercase tracking-wide text-slate-500 dark:text-slate-400" htmlFor="import-mode">
             Import mode
           </label>
           <select
             id="import-mode"
-            className="mt-2 w-full rounded-lg border bg-white px-3 py-2 text-sm"
+            className="mt-2 w-full rounded-lg border bg-white dark:bg-slate-900 px-3 py-2 text-sm"
             value={importMode}
             onChange={(event) => setImportMode(event.target.value as ImportMode)}
           >
@@ -285,7 +285,7 @@ export function SettingsPage() {
       </div>
 
       {statusMessage ? <p className="mt-5 rounded-lg bg-emerald-50 px-3 py-2 text-sm text-emerald-700">{statusMessage}</p> : null}
-      {error ? <p className="mt-5 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p> : null}
+      {error ? <p className="mt-5 rounded-lg bg-red-50 dark:bg-red-950 px-3 py-2 text-sm text-red-700 dark:text-red-300">{error}</p> : null}
     </main>
   )
 }

@@ -31,9 +31,10 @@ export const router = createBrowserRouter(
         {
           element: <AppShell />,
           children: [
-            { index: true, element: <RecapPage /> },
+            { index: true, element: <WeekPage /> },
+            { path: "recap", element: <RecapPage /> },
             { path: "day", element: <DayPage /> },
-            { path: "week", element: <WeekPage /> },
+            { path: "week", element: <Navigate to="/" replace /> },
             { path: "month", element: <MonthPage /> },
             { path: "year", element: <YearPage /> },
             { path: "packages", element: <PackagesPage /> },

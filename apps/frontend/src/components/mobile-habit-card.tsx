@@ -48,7 +48,7 @@ export function MobileHabitCard({
         ref={setNodeRef}
         style={style}
         className={cn(
-          "rounded-2xl border bg-white p-4 shadow-sm",
+          "rounded-2xl border bg-white dark:bg-slate-900 p-4 shadow-sm",
           isDragging && "bg-accent",
         )}
         {...attributes}
@@ -56,7 +56,7 @@ export function MobileHabitCard({
         <div className="flex items-start gap-3">
           <button
             type="button"
-            className="mt-0.5 shrink-0 rounded-md p-1.5 text-slate-500 hover:bg-accent"
+            className="mt-0.5 shrink-0 rounded-md p-1.5 text-slate-500 dark:text-slate-400 hover:bg-accent"
             {...listeners}
             aria-label={`Reorder ${habit.name}`}
           >
@@ -70,8 +70,8 @@ export function MobileHabitCard({
             <div className="flex min-w-0 items-center gap-2">
               <span className="text-xl leading-none">{habit.emoji || "✨"}</span>
               <div className="min-w-0">
-                <div className="truncate text-base font-semibold text-slate-950">{habit.name}</div>
-                <div className="truncate text-sm text-slate-500">
+                <div className="truncate text-base font-semibold text-slate-950 dark:text-slate-50">{habit.name}</div>
+                <div className="truncate text-sm text-slate-500 dark:text-slate-400">
                   {habit.achieved}
                   {habit.goal ? `/${habit.goal}` : ""}
                   {" "}
@@ -99,8 +99,8 @@ export function MobileHabitCard({
                   completed
                     ? "border-transparent text-white shadow-sm"
                     : isToday(day)
-                      ? "border-slate-300 bg-slate-100 text-slate-700 hover:bg-slate-200"
-                      : "border-slate-200 bg-white text-slate-500 hover:border-slate-300 hover:bg-slate-50",
+                      ? "border-slate-300 dark:border-slate-600 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700"
+                      : "border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-500 dark:text-slate-400 hover:border-slate-300 dark:hover:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-800",
                   isToday(day) && !completed && "ring-2 ring-slate-300 ring-offset-1 ring-offset-white",
                 )}
                 style={{
@@ -120,8 +120,8 @@ export function MobileHabitCard({
                   className={cn(
                     "flex h-7 w-7 shrink-0 items-center justify-center rounded-full border-2",
                     completed
-                      ? "border-white/70 bg-white/20"
-                      : "border-dashed border-slate-300 bg-transparent",
+                      ? "border-white/70 bg-white/20 dark:bg-slate-900/20"
+                      : "border-dashed border-slate-300 dark:border-slate-600 bg-transparent",
                   )}
                 >
                   {completed && <Check className="h-3.5 w-3.5 text-white" />}

@@ -30,9 +30,9 @@ export function RecapPage() {
     <main className="container mx-auto px-4 py-8">
       <div className="mb-8 flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
         <div>
-          <p className="text-sm uppercase tracking-[0.2em] text-sky-700">Recap</p>
-          <h1 className="text-4xl font-semibold tracking-tight text-slate-950">Cycle monthly cockpit</h1>
-          <p className="mt-2 max-w-2xl text-sm text-slate-600">
+          <p className="text-sm uppercase tracking-[0.2em] text-sky-700 dark:text-sky-400">Recap</p>
+          <h1 className="text-4xl font-semibold tracking-tight text-slate-950 dark:text-slate-50">Cycle monthly cockpit</h1>
+          <p className="mt-2 max-w-2xl text-sm text-slate-600 dark:text-slate-300">
             Recurring life, organized by timeframe. Scan your rituals and upkeep, see goal-based progress at a glance, and manage the full month from one view.
           </p>
         </div>
@@ -45,7 +45,7 @@ export function RecapPage() {
       ) : (
         <div className="space-y-8">
           <ProgressSummary habits={habits} />
-          <section className="rounded-[1.75rem] border bg-white/85 p-6 shadow-soft backdrop-blur">
+          <section className="rounded-[1.75rem] border bg-white/85 dark:bg-slate-900/85 p-6 shadow-soft backdrop-blur">
             <div className="mb-6 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
               <CalendarHeader />
               <HabitListActions onHabitChange={refetch} />

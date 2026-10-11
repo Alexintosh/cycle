@@ -1,9 +1,14 @@
-import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react"
+import { createContext, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react"
 import { browserSupportsWebAuthn, startAuthentication, startRegistration, WebAuthnError } from "@simplewebauthn/browser"
+import { clearOfflineReads } from "@/offline/store"
 import { ApiClient, ApiError } from "@/api/client"
 import type { PasskeySummary, SessionTokens, User } from "@/lib/types"
 
 const SESSION_STORAGE_KEY = "habit-tracker.session"
+const PROFILE_STORAGE_KEY = "cycle.offline-profile"
+function storedProfile(): User | null {
+  try { return JSON.parse(window.localStorage.getItem(PROFILE_STORAGE_KEY) ?? "null") } catch { return null }
+}
 
 type AuthStatus = "loading" | "authenticated" | "anonymous"
 
@@ -77,35 +82,60 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [tokens])
 
-  const api = useMemo(
-    () =>
-      new ApiClient({
-        getTokens: () => tokens,
-        setTokens,
-      }),
-    [tokens],
-  )
+  const tokensRef = useRef(tokens)
+  const userRef = useRef(user)
+  tokensRef.current = tokens
+  userRef.current = user
+  const updateTokens = (next: SessionTokens | null) => { tokensRef.current = next; setTokens(next) }
+  const updateUser = (next: User) => {
+    userRef.current = next
+    window.localStorage.setItem(PROFILE_STORAGE_KEY, JSON.stringify(next))
+    setUser(next)
+  }
+  const api = useMemo(() => new ApiClient({
+    getTokens: () => tokensRef.current,
+    getAuthMode: () => userRef.current?.authMode,
+    getUserId: () => tokensRef.current ? (userRef.current ?? storedProfile())?.id : undefined,
+    setTokens: next => { tokensRef.current = next; setTokens(next) },
+  }), [])
+
+  useEffect(() => {
+    const changed = (event: StorageEvent) => {
+      if (event.key !== SESSION_STORAGE_KEY) return
+      tokensRef.current = readStoredSession()
+      userRef.current = storedProfile()
+      setTokens(tokensRef.current)
+      setStatus("loading")
+    }
+    window.addEventListener("storage", changed)
+    return () => window.removeEventListener("storage", changed)
+  }, [])
 
   useEffect(() => {
     let cancelled = false
 
     async function bootstrap() {
       try {
-        const modeResult = await api.authMode()
+        let modeResult: { mode: "standard" | "bypass" }
+        try { modeResult = await api.authMode() }
+        catch (error) {
+          if (!tokens || !(error instanceof TypeError || (error instanceof ApiError && error.code === "OFFLINE_UNAVAILABLE"))) throw error
+          modeResult = { mode: "standard" }
+        }
         if (!cancelled) {
           setAuthMode(modeResult.mode)
         }
 
         const currentUser = await api.me()
         if (!cancelled) {
-          setUser(currentUser)
+          updateUser(currentUser)
           setAuthMode(currentUser.authMode ?? modeResult.mode)
           setStatus("authenticated")
         }
       } catch (error) {
         if (!cancelled) {
-          if (error instanceof ApiError && tokens) {
-            setTokens(null)
+          if (error instanceof ApiError && tokens && ["UNAUTHORIZED", "INVALID_TOKEN"].includes(error.code)) {
+            updateTokens(null)
           }
           setUser(null)
           setStatus("anonymous")
@@ -113,8 +143,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     }
 
+    const revalidate = () => { void bootstrap() }
+    window.addEventListener("online", revalidate)
     void bootstrap()
     return () => {
+      window.removeEventListener("online", revalidate)
       cancelled = true
     }
   }, [api, tokens])
@@ -140,8 +173,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       },
       completeEnrollment: () => {
         if (!pendingEnrollment) return
-        setTokens({ token: pendingEnrollment.token, refreshToken: pendingEnrollment.refreshToken })
-        setUser(pendingEnrollment.user)
+        updateTokens({ token: pendingEnrollment.token, refreshToken: pendingEnrollment.refreshToken })
+        updateUser(pendingEnrollment.user)
         setAuthMode("standard")
         setStatus("authenticated")
         setPendingEnrollment(null)
@@ -149,11 +182,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       requestOtp: (email) => api.requestOtp(email),
       verifyOtp: async ({ email, code, displayName }) => {
         const session = await api.verifyOtp(email, code, displayName)
-        setTokens({
+        updateTokens({
           token: session.token,
           refreshToken: session.refreshToken,
         })
-        setUser(session.user)
+        updateUser(session.user)
         setAuthMode(session.user.authMode ?? "standard")
         setStatus("authenticated")
       },
@@ -185,11 +218,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             challengeId: authentication.challengeId,
             response,
           })
-          setTokens({
+          updateTokens({
             token: session.token,
             refreshToken: session.refreshToken,
           })
-          setUser(session.user)
+          updateUser(session.user)
           setAuthMode(session.user.authMode ?? "standard")
           setStatus("authenticated")
         } catch (error) {
@@ -200,8 +233,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (isBypassAuth) {
           return
         }
+        const account = userRef.current?.id
         void api.logout().catch(() => undefined)
-        setTokens(null)
+        tokensRef.current = null
+        userRef.current = null
+        window.localStorage.removeItem(PROFILE_STORAGE_KEY)
+        if (account) void clearOfflineReads(account).catch(() => undefined)
+        updateTokens(null)
         setUser(null)
         setAuthMode("standard")
         setStatus("anonymous")

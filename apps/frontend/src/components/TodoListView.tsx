@@ -55,11 +55,11 @@ export function TodoListView({ habits, currentDate }: TodoListViewProps) {
   return (
     <div className="space-y-3">
       {orderedHabits.map((habit) => (
-        <Card 
+        <Card
           key={habit.id}
-          className={`p-4 flex items-center justify-between hover:bg-gray-50 transition-colors cursor-pointer ${
+          className={`p-4 flex items-center justify-between hover:bg-gray-50 dark:hover:bg-slate-800 transition-colors cursor-pointer ${
             hasCompletionOnDate(habit)
-              ? 'bg-green-50 hover:bg-green-100' 
+              ? 'bg-green-50 dark:bg-emerald-950 hover:bg-green-100 dark:hover:bg-emerald-900'
               : ''
           }`}
           onClick={async () => {
@@ -78,12 +78,12 @@ export function TodoListView({ habits, currentDate }: TodoListViewProps) {
             <div>
               <h3 className="font-medium">{habit.name} {currentDateStr}</h3>
               {habit.description && (
-                <p className="text-sm text-gray-500">{habit.description}</p>
+                <p className="text-sm text-gray-500 dark:text-slate-400">{habit.description}</p>
               )}
             </div>
           </div>
           <div className="flex items-center space-x-4">
-            <div className="text-sm text-gray-500">
+            <div className="text-sm text-gray-500 dark:text-slate-400">
               {habit.goal ? `${habit.achieved}/${habit.goal} this period` : `${habit.achieved} check-ins`}
             </div>
             <HabitActions
@@ -91,12 +91,12 @@ export function TodoListView({ habits, currentDate }: TodoListViewProps) {
               onEdit={handleEditHabit}
               onDelete={handleDeleteHabit}
             />
-            <Button 
-              variant="ghost" 
+            <Button
+              variant="ghost"
               size="sm"
               disabled={isUpdating === habit.id}
               className={hasCompletionOnDate(habit)
-                ? 'text-green-600' 
+                ? 'text-green-600'
                 : 'text-gray-400'
               }
               onClick={(event) => {
@@ -117,4 +117,4 @@ export function TodoListView({ habits, currentDate }: TodoListViewProps) {
       ))}
     </div>
   )
-} 
+}

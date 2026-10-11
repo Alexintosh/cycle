@@ -98,6 +98,39 @@ export const statements = [
   );`,
   "CREATE INDEX IF NOT EXISTS installed_packages_user_idx ON installed_packages(user_id);",
   "CREATE UNIQUE INDEX IF NOT EXISTS installed_packages_user_package_unique ON installed_packages(user_id, package_id);",
+  `CREATE TABLE IF NOT EXISTS packages (
+    id TEXT PRIMARY KEY NOT NULL,
+    user_id TEXT NOT NULL,
+    title TEXT NOT NULL,
+    description TEXT NOT NULL DEFAULT '',
+    author TEXT NOT NULL,
+    version TEXT NOT NULL,
+    tags TEXT NOT NULL DEFAULT '[]',
+    created_at INTEGER NOT NULL,
+    updated_at INTEGER NOT NULL,
+    FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
+  );`,
+  "CREATE INDEX IF NOT EXISTS packages_user_idx ON packages(user_id);",
+  "CREATE INDEX IF NOT EXISTS packages_title_idx ON packages(title);",
+  `CREATE TABLE IF NOT EXISTS package_items (
+    id TEXT PRIMARY KEY NOT NULL,
+    package_id TEXT NOT NULL,
+    item_id TEXT NOT NULL,
+    timeframe TEXT NOT NULL,
+    emoji TEXT NOT NULL DEFAULT '✨',
+    title TEXT NOT NULL,
+    description TEXT NOT NULL DEFAULT '',
+    goal INTEGER,
+    section TEXT NOT NULL DEFAULT 'OTHER',
+    color TEXT NOT NULL DEFAULT '#E2E8F0',
+    sort_order INTEGER NOT NULL DEFAULT 0,
+    created_at INTEGER NOT NULL,
+    updated_at INTEGER NOT NULL,
+    FOREIGN KEY(package_id) REFERENCES packages(id) ON DELETE CASCADE
+  );`,
+  "CREATE INDEX IF NOT EXISTS package_items_package_idx ON package_items(package_id);",
+  "CREATE INDEX IF NOT EXISTS package_items_package_order_idx ON package_items(package_id, sort_order);",
+  "CREATE UNIQUE INDEX IF NOT EXISTS package_items_package_item_unique ON package_items(package_id, item_id);",
 ]
 
 export async function initializeDatabase(client: Client) {
@@ -123,6 +156,10 @@ CREATE INDEX IF NOT EXISTS sessions_user_idx ON sessions(user_id);
 );`)
   await client.execute("CREATE INDEX IF NOT EXISTS recovery_codes_user_idx ON recovery_codes(user_id)")
   await client.execute("CREATE INDEX IF NOT EXISTS auth_enrollments_expiry_idx ON auth_enrollments(expires_at)")
+  await client.execute(`CREATE TABLE IF NOT EXISTS offline_mutations (
+ user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE, id TEXT NOT NULL,
+ request_hash TEXT NOT NULL, created_at INTEGER NOT NULL, PRIMARY KEY(user_id,id)
+);`)
   await ensureColumn(client, "habits", "source_type", "TEXT NOT NULL DEFAULT 'manual'")
   await ensureColumn(client, "habits", "package_id", "TEXT")
   await ensureColumn(client, "habits", "package_item_id", "TEXT")

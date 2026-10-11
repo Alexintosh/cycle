@@ -9,7 +9,7 @@ import pathlib
 import sqlite3
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
-TABLES = ("users", "habits", "installed_packages", "habit_logs", "passkeys")
+TABLES = ("users", "packages", "package_items", "habits", "installed_packages", "habit_logs", "passkeys")
 
 
 def identifier(value):

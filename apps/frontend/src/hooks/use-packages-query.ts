@@ -3,6 +3,7 @@ import { ApiError } from "@/api/client"
 import { useAuth } from "@/features/auth/auth-context"
 import type {
   InstalledPackageSummary,
+  OwnedPackage,
   PackageRegistryPayload,
   RegistryPackage,
 } from "@/lib/types"
@@ -10,6 +11,7 @@ import type {
 type UsePackagesQueryResult = {
   registryMeta: Omit<PackageRegistryPayload, "packages">
   registry: RegistryPackage[]
+  owned: OwnedPackage[]
   installed: InstalledPackageSummary[]
   isLoading: boolean
   error: string | null
@@ -25,6 +27,7 @@ export function usePackagesQuery(): UsePackagesQueryResult {
     updatedAt: "",
   })
   const [registry, setRegistry] = useState<RegistryPackage[]>([])
+  const [owned, setOwned] = useState<OwnedPackage[]>([])
   const [installed, setInstalled] = useState<InstalledPackageSummary[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -33,6 +36,7 @@ export function usePackagesQuery(): UsePackagesQueryResult {
     if (status !== "authenticated") {
       setRegistryMeta({ schemaVersion: 1, updatedAt: "" })
       setRegistry([])
+      setOwned([])
       setInstalled([])
       setIsLoading(false)
       setError(null)
@@ -43,13 +47,18 @@ export function usePackagesQuery(): UsePackagesQueryResult {
     try {
       setIsLoading(true)
       setError(null)
-      const [nextRegistry, nextInstalled] = await Promise.all([api.listPackageRegistry(), api.listInstalledPackages()])
+      const [nextRegistry, nextOwned, nextInstalled] = await Promise.all([
+        api.listPackageRegistry(),
+        api.listOwnedPackages(),
+        api.listInstalledPackages(),
+      ])
       if (accountRef.current !== account) return
       setRegistryMeta({
         schemaVersion: nextRegistry.schemaVersion,
         updatedAt: nextRegistry.updatedAt,
       })
       setRegistry(nextRegistry.packages)
+      setOwned(nextOwned)
       setInstalled(nextInstalled)
     } catch (loadError) {
       if (accountRef.current !== account) return
@@ -64,9 +73,16 @@ export function usePackagesQuery(): UsePackagesQueryResult {
     void refetch()
   }, [refetch])
 
+  useEffect(() => {
+    const synced = () => { void refetch() }
+    window.addEventListener("cycle:data-synced", synced)
+    return () => window.removeEventListener("cycle:data-synced", synced)
+  }, [refetch])
+
   return {
     registryMeta,
     registry,
+    owned,
     installed,
     isLoading,
     error,

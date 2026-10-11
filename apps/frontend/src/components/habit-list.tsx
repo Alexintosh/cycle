@@ -53,7 +53,7 @@ export function SortableHabitRow({
   }
 
   const isGoalMet = habit.goal !== null && habit.goal > 0 && habit.achieved >= habit.goal
-  const rowClassName = `${isDragging ? 'bg-accent' : ''} ${isGoalMet ? 'bg-green-50 hover:bg-green-100' : ''}`
+  const rowClassName = `${isDragging ? 'bg-accent' : ''} ${isGoalMet ? 'bg-green-50 dark:bg-emerald-950 hover:bg-green-100 dark:hover:bg-emerald-900' : ''}`
   const stickyCellClassName = `sticky left-0 shadow-[4px_0_4px_-4px_rgba(0,0,0,0.1)] z-20 ${rowClassName}`
 
   return (
@@ -64,7 +64,7 @@ export function SortableHabitRow({
         className={`border-t ${rowClassName}`}
         {...attributes}
       >
-        <td className={`p-2 ${stickyCellClassName} bg-white`}>
+        <td className={`p-2 ${stickyCellClassName} bg-white dark:bg-slate-900`}>
           <div className="flex items-center gap-2 min-w-0">
             <button 
               className="cursor-grab shrink-0 rounded p-1 hover:bg-accent" 
@@ -78,7 +78,7 @@ export function SortableHabitRow({
               onClick={() => setDrawerOpen(true)}
             >
               <div className="truncate font-medium">{habit.name}</div>
-              <div className="truncate text-sm text-gray-500">
+              <div className="truncate text-sm text-gray-500 dark:text-slate-400">
                 {habit.achieved}{habit.goal ? `/${habit.goal}` : ""} {habit.goal ? "done" : "check-ins"}
               </div>
             </button>
@@ -90,7 +90,7 @@ export function SortableHabitRow({
           return (
             <td 
               key={day.getTime()}
-              className={`relative text-center p-1 border border-slate-200/80 bg-white/60 ${isToday(day) ? 'bg-muted/70' : ''}`}
+              className={`relative text-center p-1 border border-slate-200/80 dark:border-slate-700/80 bg-white/60 dark:bg-slate-900/60 ${isToday(day) ? 'bg-muted/70' : ''}`}
             >
               <Button
                 variant="ghost"
@@ -102,7 +102,7 @@ export function SortableHabitRow({
                 } ${
                   log?.completed
                     ? "border-transparent text-white"
-                    : "border-slate-200 bg-white text-slate-400 hover:border-slate-300 hover:bg-slate-50"
+                    : "border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-400 hover:border-slate-300 dark:hover:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-800"
                 } ${isToday(day) ? "ring-2 ring-slate-300 ring-offset-1 ring-offset-white" : ""}`}
                 style={{
                   backgroundColor: log?.completed 
@@ -121,7 +121,7 @@ export function SortableHabitRow({
             </td>
           )
         })}
-        <td className={`text-center p-2 sticky right-0 shadow-[-4px_0_4px_-4px_rgba(0,0,0,0.1)] z-20 ${rowClassName} bg-white`}>
+        <td className={`text-center p-2 sticky right-0 shadow-[-4px_0_4px_-4px_rgba(0,0,0,0.1)] z-20 ${rowClassName} bg-white dark:bg-slate-900`}>
           <HabitActions
             habit={habit}
             onEdit={onEditHabit}
@@ -244,17 +244,17 @@ export function HabitList({ habits: initialHabits, title, onHabitChange }: Habit
         <div className="relative hidden overflow-x-auto md:block [&::-webkit-scrollbar]:h-2 [&::-webkit-scrollbar-track]:bg-gray-100 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-gray-300">
           <table className="w-full border-collapse">
             <thead>
-              <tr className="bg-white">
-                <th className="sticky left-0 z-20 min-w-[150px] bg-white p-2 text-left shadow-[4px_0_4px_-4px_rgba(0,0,0,0.1)]">Rituals</th>
+              <tr className="bg-white dark:bg-slate-900">
+                <th className="sticky left-0 z-20 min-w-[150px] bg-white dark:bg-slate-900 p-2 text-left shadow-[4px_0_4px_-4px_rgba(0,0,0,0.1)]">Rituals</th>
                 {daysInMonth.map((day) => (
                   <th 
                     key={day.getTime()}
-                    className={`w-10 bg-white p-2 text-center ${
+                    className={`w-10 bg-white dark:bg-slate-900 p-2 text-center ${
                       isToday(day) ? 'bg-muted' : ''
                     }`}
                   >
                     <div className="flex flex-col items-center">
-                      <span className="text-xs text-gray-500">
+                      <span className="text-xs text-gray-500 dark:text-slate-400">
                         {day.toLocaleDateString("en-US", { weekday: "short" }).charAt(0)}
                       </span>
                       <Button
@@ -268,7 +268,7 @@ export function HabitList({ habits: initialHabits, title, onHabitChange }: Habit
                     </div>
                   </th>
                 ))}
-                <th className="sticky right-0 z-20 min-w-[100px] bg-white p-2 text-center shadow-[-4px_0_4px_-4px_rgba(0,0,0,0.1)]">Actions</th>
+                <th className="sticky right-0 z-20 min-w-[100px] bg-white dark:bg-slate-900 p-2 text-center shadow-[-4px_0_4px_-4px_rgba(0,0,0,0.1)]">Actions</th>
               </tr>
             </thead>
             <tbody>

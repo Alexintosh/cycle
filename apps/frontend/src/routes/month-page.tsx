@@ -47,6 +47,12 @@ export function MonthPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cursor])
 
+  useEffect(() => {
+    const synced = () => { void load(cursor) }
+    window.addEventListener("cycle:data-synced", synced)
+    return () => window.removeEventListener("cycle:data-synced", synced)
+  }, [api, cursor])
+
   const handleToggleToday = async (habit: HabitWithLogs) => {
     const todayIso = toLocalIsoDate(new Date())
     const isCompleted = habit.logs.some((log) => log.date === todayIso && log.completed)
@@ -58,19 +64,19 @@ export function MonthPage() {
     <main className="container mx-auto px-4 py-8">
       <div className="mb-6 flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-semibold tracking-tight text-slate-900">Monthly rituals</h1>
-          <p className="mt-1 text-sm text-slate-600">{cursor.toLocaleDateString(undefined, { month: "long", year: "numeric" })}</p>
+          <h1 className="text-3xl font-semibold tracking-tight text-slate-900 dark:text-slate-100">Monthly rituals</h1>
+          <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">{cursor.toLocaleDateString(undefined, { month: "long", year: "numeric" })}</p>
         </div>
         <div className="flex gap-2">
           <button
-            className="rounded-lg border bg-white px-3 py-2 text-sm text-slate-700 hover:bg-slate-50"
+            className="rounded-lg border bg-white dark:bg-slate-900 px-3 py-2 text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800"
             onClick={() => setCursor((prev) => new Date(prev.getFullYear(), prev.getMonth() - 1, 1))}
             type="button"
           >
             Previous
           </button>
           <button
-            className="rounded-lg border bg-white px-3 py-2 text-sm text-slate-700 hover:bg-slate-50"
+            className="rounded-lg border bg-white dark:bg-slate-900 px-3 py-2 text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800"
             onClick={() => setCursor((prev) => new Date(prev.getFullYear(), prev.getMonth() + 1, 1))}
             type="button"
           >
@@ -79,23 +85,23 @@ export function MonthPage() {
         </div>
       </div>
 
-      {isLoading ? <p className="text-slate-600">Loading monthly rituals...</p> : null}
-      {error ? <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p> : null}
+      {isLoading ? <p className="text-slate-600 dark:text-slate-300">Loading monthly rituals...</p> : null}
+      {error ? <p className="rounded-lg bg-red-50 dark:bg-red-950 px-3 py-2 text-sm text-red-700 dark:text-red-300">{error}</p> : null}
 
       {!isLoading && !error ? (
-        <section className="rounded-2xl border bg-white/70 p-4 shadow-sm">
+        <section className="rounded-2xl border bg-white/70 dark:bg-slate-900/70 p-4 shadow-sm">
           {habits.length ? (
             <ul className="space-y-2">
               {habits.map((habit) => {
                 const todayIso = toLocalIsoDate(new Date())
                 const doneToday = habit.logs.some((log) => log.date === todayIso && log.completed)
                 return (
-                  <li key={habit.id} className="flex items-center justify-between rounded-xl border bg-white/80 p-3">
+                  <li key={habit.id} className="flex items-center justify-between rounded-xl border bg-white/80 dark:bg-slate-900/80 p-3">
                     <div className="flex items-center gap-3">
                       <span className="text-xl">{habit.emoji || "✨"}</span>
                       <div>
-                        <p className="font-medium text-slate-900">{habit.name}</p>
-                          <p className="text-xs text-slate-500">
+                        <p className="font-medium text-slate-900 dark:text-slate-100">{habit.name}</p>
+                          <p className="text-xs text-slate-500 dark:text-slate-400">
                             {habit.goal ? `${habit.achieved}/${habit.goal}` : `${habit.achieved} check-ins this month`}
                           </p>
                       </div>
@@ -104,7 +110,7 @@ export function MonthPage() {
                       className={`rounded-lg px-3 py-1.5 text-sm font-medium transition ${
                         doneToday
                           ? "bg-emerald-500 text-white hover:bg-emerald-600"
-                          : "bg-slate-100 text-slate-700 hover:bg-slate-200"
+                          : "bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700"
                       }`}
                       onClick={() => void handleToggleToday(habit)}
                       type="button"
@@ -116,7 +122,7 @@ export function MonthPage() {
               })}
             </ul>
           ) : (
-            <p className="text-sm text-slate-500">No monthly rituals found for this month.</p>
+            <p className="text-sm text-slate-500 dark:text-slate-400">No monthly rituals found for this month.</p>
           )}
         </section>
       ) : null}

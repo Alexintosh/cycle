@@ -29,15 +29,15 @@ export function WeekPage() {
       <div className="mb-6 flex flex-col gap-3 md:mb-8 md:flex-row md:items-end md:justify-between">
         <div>
           <p className="text-sm uppercase tracking-[0.2em] text-emerald-700">Weekly view</p>
-          <h1 className="text-2xl font-semibold tracking-tight text-slate-950 sm:text-3xl md:text-4xl">Plan the week, then keep it moving.</h1>
-          <p className="mt-2 max-w-2xl text-sm text-slate-600">
+          <h1 className="text-2xl font-semibold tracking-tight text-slate-950 dark:text-slate-50 sm:text-3xl md:text-4xl">Plan the week, then keep it moving.</h1>
+          <p className="mt-2 max-w-2xl text-sm text-slate-600 dark:text-slate-300">
             Search, filter, and reorder weekly rituals and upkeep across categories while keeping each day visible.
           </p>
         </div>
         <HabitListActions onHabitChange={refetch} />
       </div>
 
-      <section className="rounded-[1.5rem] border bg-white/85 p-4 shadow-soft backdrop-blur md:rounded-[1.75rem] md:p-6">
+      <section className="rounded-[1.5rem] border bg-white/85 dark:bg-slate-900/85 p-4 shadow-soft backdrop-blur md:rounded-[1.75rem] md:p-6">
         <PeriodNavigator currentDate={currentDate} onDateChange={setCurrentDate} periodType="week" className="mb-4 justify-start" />
         {isLoading ? (
           <LoadingState message="Loading the weekly board..." />

@@ -31,7 +31,7 @@ export function HabitDetailsDrawer({
         <div className="space-y-4 p-4">
           <h3 className="font-medium">Progress</h3>
           <div className="flex items-center gap-2">
-            <div className="h-2 flex-1 overflow-hidden rounded-full bg-gray-100">
+            <div className="h-2 flex-1 overflow-hidden rounded-full bg-gray-100 dark:bg-slate-800">
               <div 
                 className="h-full rounded-full transition-all"
                 style={{ 
@@ -40,7 +40,7 @@ export function HabitDetailsDrawer({
                 }}
               />
             </div>
-            <span className="text-sm text-gray-600">{habit.achieved}{goal > 0 ? `/${goal}` : ""}</span>
+            <span className="text-sm text-gray-600 dark:text-slate-300">{habit.achieved}{goal > 0 ? `/${goal}` : ""}</span>
           </div>
         </div>
         <div className="space-y-4 p-4">
@@ -62,7 +62,7 @@ export function HabitDetailsDrawer({
           ) : 
             <div className="space-y-2">
               <h3 className="font-medium">Description</h3>
-              <p className="text-sm text-gray-600">{habit.description}</p>
+              <p className="text-sm text-gray-600 dark:text-slate-300">{habit.description}</p>
             </div>
           }
         </div>
